@@ -17,7 +17,7 @@ git pull origin main
 
 echo ""
 echo "▶ Installing dependencies..."
-npm install --omit=dev
+npm install
 
 echo ""
 echo "▶ Generating Prisma client..."
