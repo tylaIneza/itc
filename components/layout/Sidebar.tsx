@@ -28,7 +28,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/sales', label: 'Sales', icon: ShoppingCart, anyOf: ['view_sales', 'create_sale', 'delete_sale'] },
-  { href: '/products', label: 'Products & Stock', icon: Package, anyOf: ['view_stock', 'create_product', 'edit_product', 'adjust_stock'] },
+  { href: '/products', label: 'Products & Stock', icon: Package },
   { href: '/expenses', label: 'Expenses', icon: Receipt, anyOf: ['create_expense', 'edit_expense', 'delete_expense', 'approve_expense_requests'] },
   { href: '/co-opera', label: 'Co-opera', icon: PiggyBank, anyOf: ['view_co_opera_history', 'record_co_opera', 'edit_co_opera_amount', 'fix_co_opera_records'] },
   { href: '/analytics', label: 'Analytics', icon: TrendingUp, permission: 'view_reports' },
