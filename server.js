@@ -11,7 +11,7 @@ const rateLimit = require('express-rate-limit');
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = parseInt(process.env.PORT || '3310', 10);
 
 // Import routes
 const authRoutes = require('./server/routes/auth');
@@ -34,7 +34,7 @@ app.prepare().then(() => {
   // Socket.IO setup
   const io = new Server(httpServer, {
     cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3310',
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -54,7 +54,7 @@ app.prepare().then(() => {
   }));
 
   expressApp.use(cors({
-    origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3310',
     credentials: true,
   }));
 
