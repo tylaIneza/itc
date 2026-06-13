@@ -29,6 +29,7 @@ const dashboardRoutes = require('./server/routes/dashboard');
 
 app.prepare().then(() => {
   const expressApp = express();
+  expressApp.set('trust proxy', 1);
   const httpServer = createServer(expressApp);
 
   // Socket.IO setup
