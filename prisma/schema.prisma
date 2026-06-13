@@ -1,0 +1,298 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Branch {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  location    String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  users       User[]
+
+  @@map("branches")
+}
+
+model Role {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  users       User[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  module          String
+  description     String?
+  userPermissions UserPermission[]
+
+  @@map("permissions")
+}
+
+model User {
+  id                  Int              @id @default(autoincrement())
+  fullName            String
+  email               String           @unique
+  phoneNumber         String           @unique
+  password            String
+  roleId              Int
+  branchId            Int?
+  isActive            Boolean          @default(true)
+  forcePasswordChange Boolean          @default(false)
+  lastLogin           DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  role                Role             @relation(fields: [roleId], references: [id])
+  branch              Branch?          @relation(fields: [branchId], references: [id])
+  permissions         UserPermission[]
+  sales               Sale[]
+  expenses            Expense[]
+  expenseEditRequests ExpenseEditRequest[]
+  coOperas            CoOpera[]
+  coOperaAdjustments  CoOperaAdjustment[]
+  capitalInjections   CapitalInjection[]
+  auditLogs           AuditLog[]
+  stockMovements      StockMovement[]
+
+  @@map("users")
+}
+
+model UserPermission {
+  id           Int        @id @default(autoincrement())
+  userId       Int
+  permissionId Int
+  grantedBy    Int?
+  grantedAt    DateTime   @default(now())
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@map("user_permissions")
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id                Int             @id @default(autoincrement())
+  name              String
+  categoryId        Int
+  wholesalePrice    Decimal         @db.Decimal(15, 2)
+  sellingPrice      Decimal         @db.Decimal(15, 2)
+  quantity          Int             @default(0)
+  lowStockThreshold Int             @default(5)
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  category          Category        @relation(fields: [categoryId], references: [id])
+  saleItems         SaleItem[]
+  stockMovements    StockMovement[]
+
+  @@map("products")
+}
+
+model StockMovement {
+  id          Int           @id @default(autoincrement())
+  productId   Int
+  userId      Int
+  type        StockMoveType
+  quantity    Int
+  reason      String?
+  reference   String?
+  createdAt   DateTime      @default(now())
+
+  product     Product       @relation(fields: [productId], references: [id])
+  user        User          @relation(fields: [userId], references: [id])
+
+  @@map("stock_movements")
+}
+
+enum StockMoveType {
+  IN
+  OUT
+  RETURN
+  ADJUSTMENT
+}
+
+model Sale {
+  id            Int        @id @default(autoincrement())
+  invoiceNumber String     @unique
+  userId        Int
+  totalAmount   Decimal    @db.Decimal(15, 2)
+  notes         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  user          User       @relation(fields: [userId], references: [id])
+  items         SaleItem[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id             Int     @id @default(autoincrement())
+  saleId         Int
+  productId      Int
+  quantity       Int
+  unitPrice      Decimal @db.Decimal(15, 2)
+  wholesalePrice Decimal @db.Decimal(15, 2)
+  totalPrice     Decimal @db.Decimal(15, 2)
+
+  sale           Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product        Product @relation(fields: [productId], references: [id])
+
+  @@map("sale_items")
+}
+
+model ExpenseCategory {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  expenses    Expense[]
+
+  @@map("expense_categories")
+}
+
+model Expense {
+  id          Int                  @id @default(autoincrement())
+  categoryId  Int
+  userId      Int
+  amount      Decimal              @db.Decimal(15, 2)
+  description String
+  date        DateTime             @db.Date
+  status      ExpenseStatus        @default(APPROVED)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  category    ExpenseCategory      @relation(fields: [categoryId], references: [id])
+  user        User                 @relation(fields: [userId], references: [id])
+  editRequests ExpenseEditRequest[]
+
+  @@map("expenses")
+}
+
+enum ExpenseStatus {
+  APPROVED
+  PENDING
+  REJECTED
+}
+
+model ExpenseEditRequest {
+  id            Int           @id @default(autoincrement())
+  expenseId     Int
+  requestedBy   Int
+  newAmount     Decimal       @db.Decimal(15, 2)
+  newDescription String?
+  reason        String
+  status        RequestStatus @default(PENDING)
+  reviewedBy    Int?
+  reviewedAt    DateTime?
+  createdAt     DateTime      @default(now())
+
+  expense       Expense       @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  requester     User          @relation(fields: [requestedBy], references: [id])
+
+  @@map("expense_edit_requests")
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model CoOpera {
+  id             Int      @id @default(autoincrement())
+  date           DateTime @db.Date
+  amount         Decimal  @db.Decimal(15, 2)
+  revenueToday   Decimal  @db.Decimal(15, 2)
+  businessMoney  Decimal  @db.Decimal(15, 2)
+  recordedBy     Int
+  isMissed       Boolean  @default(false)
+  isExcused      Boolean  @default(false)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [recordedBy], references: [id])
+
+  @@unique([date])
+  @@map("co_operas")
+}
+
+model CoOperaConfig {
+  id            Int      @id @default(autoincrement())
+  targetAmount  Decimal  @db.Decimal(15, 2) @default(17500)
+  minimumAmount Decimal  @db.Decimal(15, 2) @default(17500)
+  startDate     DateTime @db.Date @default(dbgenerated("'2026-06-14'"))
+  updatedAt     DateTime @updatedAt
+
+  @@map("co_opera_config")
+}
+
+model CoOperaAdjustment {
+  id         Int      @id @default(autoincrement())
+  oldAmount  Decimal  @db.Decimal(15, 2)
+  newAmount  Decimal  @db.Decimal(15, 2)
+  reason     String
+  adjustedBy Int
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [adjustedBy], references: [id])
+
+  @@map("co_opera_adjustments")
+}
+
+model CapitalInjection {
+  id          Int      @id @default(autoincrement())
+  amount      Decimal  @db.Decimal(15, 2)
+  description String
+  date        DateTime @db.Date
+  addedBy     Int
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [addedBy], references: [id])
+
+  @@map("capital_injections")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String
+  module     String
+  entityId   Int?
+  entityType String?
+  oldValues  Json?
+  newValues  Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
