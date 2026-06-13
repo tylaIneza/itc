@@ -534,15 +534,13 @@ export default function ProductsPage() {
           <Button variant="outline" size="sm" onClick={exportToExcel}>
             <Download className="w-4 h-4 mr-2" />Export
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="w-4 h-4 mr-2" />Import
+          </Button>
           {canCreate && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
-                <Upload className="w-4 h-4 mr-2" />Import
-              </Button>
-              <Button onClick={() => { setEditProduct(null); setShowForm(true) }}>
-                <Plus className="w-4 h-4 mr-2" />New Product
-              </Button>
-            </>
+            <Button onClick={() => { setEditProduct(null); setShowForm(true) }}>
+              <Plus className="w-4 h-4 mr-2" />New Product
+            </Button>
           )}
         </div>
       </div>
