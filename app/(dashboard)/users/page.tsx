@@ -12,9 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
-import { formatDateTime, getInitials } from '@/lib/utils'
+import { getInitials } from '@/lib/utils'
 import { usePermissions } from '@/hooks/use-permissions'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import api from '@/lib/api'
@@ -242,8 +241,11 @@ export default function UsersPage() {
         api.get<Permission[]>('/users/permissions'),
       ])
       if (usersRes.success) { setUsers(usersRes.data.users); setTotal(usersRes.data.total) }
+      else toast({ title: 'Error', description: usersRes.message || 'Failed to load users', variant: 'destructive' })
       if (rolesRes.success) setRoles(rolesRes.data)
       if (permsRes.success) setAllPermissions(permsRes.data)
+    } catch {
+      toast({ title: 'Network Error', description: 'Could not connect to server. Please refresh.', variant: 'destructive' })
     } finally { setLoading(false) }
   }, [search])
 

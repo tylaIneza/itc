@@ -4,7 +4,7 @@ import { Plus, Search, Edit, AlertTriangle, Package, ChevronDown, Upload, Downlo
 import * as XLSX from 'xlsx'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -42,7 +42,7 @@ interface ImportRow {
   _error?: string
 }
 
-function ImportDialog({ open, onClose, onImported }: { open: boolean; onClose: () => void; onImported: () => void }) {
+function ImportDialog({ open, onClose, onImported, canImport }: { open: boolean; onClose: () => void; onImported: () => void; canImport: boolean }) {
   const { toast } = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
   const [rows, setRows] = useState<ImportRow[]>([])
@@ -303,15 +303,21 @@ function ImportDialog({ open, onClose, onImported }: { open: boolean; onClose: (
           </p>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleClose}>Cancel</Button>
-            <Button
-              onClick={handleImport}
-              disabled={submitting || validCount === 0}
-              className="min-w-[120px]"
-            >
-              {submitting
-                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing...</>
-                : <><Upload className="w-4 h-4 mr-2" />Import {validCount > 0 ? validCount : ''} Rows</>}
-            </Button>
+            {canImport ? (
+              <Button
+                onClick={handleImport}
+                disabled={submitting || validCount === 0}
+                className="min-w-[120px]"
+              >
+                {submitting
+                  ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Importing...</>
+                  : <><Upload className="w-4 h-4 mr-2" />Import {validCount > 0 ? validCount : ''} Rows</>}
+              </Button>
+            ) : (
+              <Button disabled className="min-w-[120px]" title="You don't have permission to import products">
+                No Import Permission
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>
@@ -682,7 +688,7 @@ export default function ProductsPage() {
       )}
 
       {/* Import dialog */}
-      <ImportDialog open={showImport} onClose={() => setShowImport(false)} onImported={load} />
+      <ImportDialog open={showImport} onClose={() => setShowImport(false)} onImported={load} canImport={canCreate} />
     </div>
   )
 }
