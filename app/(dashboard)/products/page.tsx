@@ -493,7 +493,10 @@ export default function ProductsPage() {
         api.get<Category[]>('/categories'),
       ])
       if (prodRes.success) { setProducts(prodRes.data.products); setTotal(prodRes.data.total) }
+      else toast({ title: 'Error', description: prodRes.message || 'Failed to load products', variant: 'destructive' })
       if (catRes.success) setCategories(catRes.data)
+    } catch (err) {
+      toast({ title: 'Network Error', description: 'Could not connect to server. Please refresh.', variant: 'destructive' })
     } finally { setLoading(false) }
   }, [page, search, lowStockFilter])
 

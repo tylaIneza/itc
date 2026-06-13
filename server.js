@@ -32,13 +32,29 @@ app.prepare().then(() => {
   expressApp.set('trust proxy', 1);
   const httpServer = createServer(expressApp);
 
+  // Build allowed origins list: primary URL + www variant + localhost
+  const primaryOrigin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3310';
+  const allowedOrigins = [primaryOrigin, 'http://localhost:3310'];
+  if (primaryOrigin.startsWith('https://www.')) {
+    allowedOrigins.push(primaryOrigin.replace('https://www.', 'https://'));
+  } else if (primaryOrigin.startsWith('https://') && !primaryOrigin.startsWith('https://www.')) {
+    allowedOrigins.push(primaryOrigin.replace('https://', 'https://www.'));
+  }
+
+  const corsOptions = {
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
+    credentials: true,
+  };
+
   // Socket.IO setup
   const io = new Server(httpServer, {
-    cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3310',
-      methods: ['GET', 'POST'],
-      credentials: true,
-    },
+    cors: { origin: allowedOrigins, methods: ['GET', 'POST'], credentials: true },
     path: '/socket.io',
   });
 
@@ -54,10 +70,7 @@ app.prepare().then(() => {
     crossOriginEmbedderPolicy: false,
   }));
 
-  expressApp.use(cors({
-    origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3310',
-    credentials: true,
-  }));
+  expressApp.use(cors(corsOptions));
 
   expressApp.use(morgan(dev ? 'dev' : 'combined'));
   expressApp.use(express.json({ limit: '10mb' }));
