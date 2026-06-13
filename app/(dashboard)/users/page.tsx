@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Search, Edit, UserX, Key, Shield } from 'lucide-react'
+import { Plus, Search, Edit, UserX, Key, Shield, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -229,6 +229,7 @@ export default function UsersPage() {
   const canEdit = checkPermission('edit_users')
   const canManagePerms = checkPermission('manage_permissions')
   const canDeactivate = checkPermission('deactivate_users')
+  const canDelete = checkPermission('delete_users')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -254,6 +255,14 @@ export default function UsersPage() {
       if (res.success) { toast({ title: 'User deactivated' }); load() }
       else toast({ title: 'Error', description: res.message, variant: 'destructive' })
     } catch { toast({ title: 'Error', description: 'Failed to deactivate', variant: 'destructive' }) }
+  }
+
+  const handleDelete = async (userId: number) => {
+    try {
+      const res = await api.delete(`/users/${userId}/delete`)
+      if (res.success) { toast({ title: 'User deleted' }); load() }
+      else toast({ title: 'Error', description: res.message, variant: 'destructive' })
+    } catch { toast({ title: 'Error', description: 'Failed to delete user', variant: 'destructive' }) }
   }
 
   return (
@@ -350,6 +359,23 @@ export default function UsersPage() {
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                                 <AlertDialogAction onClick={() => handleDeactivate(user.id)} className="bg-destructive">Deactivate</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
+                        {canDelete && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Delete permanently"><Trash2 className="w-4 h-4" /></Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete User Permanently?</AlertDialogTitle>
+                                <AlertDialogDescription>This will permanently remove <strong>{user.fullName}</strong> from the system. This cannot be undone.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDelete(user.id)} className="bg-destructive">Delete Permanently</AlertDialogAction>
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>

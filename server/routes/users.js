@@ -260,6 +260,39 @@ router.post('/:id/reset-password', authenticate, hasPermission('edit_users'), as
   }
 });
 
+// DELETE /api/users/:id/delete (hard delete)
+router.delete('/:id/delete', authenticate, hasPermission('delete_users'), async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    if (userId === req.userId) return errorResponse(res, 'Cannot delete your own account', 400);
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return errorResponse(res, 'User not found', 404);
+
+    await prisma.userPermission.deleteMany({ where: { userId } });
+    await prisma.user.delete({ where: { id: userId } });
+
+    await createAuditLog({
+      userId: req.userId,
+      action: 'DELETE_USER',
+      module: 'Users',
+      entityId: userId,
+      entityType: 'User',
+      oldValues: { fullName: user.fullName, email: user.email },
+      ipAddress: req.ip,
+    });
+
+    if (global.io) global.io.to('role-Admin').emit('user:deleted', { userId });
+
+    return successResponse(res, null, 'User deleted successfully');
+  } catch (err) {
+    if (err.code === 'P2003') {
+      return errorResponse(res, 'Cannot delete user with existing records. Deactivate them instead.', 409);
+    }
+    return errorResponse(res, 'Failed to delete user', 500);
+  }
+});
+
 // DELETE /api/users/:id (deactivate)
 router.delete('/:id', authenticate, hasPermission('deactivate_users'), async (req, res) => {
   try {

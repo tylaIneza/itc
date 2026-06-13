@@ -33,6 +33,7 @@ const PERMISSIONS = [
   { name: 'create_users', module: 'Users', description: 'Create Users' },
   { name: 'edit_users', module: 'Users', description: 'Edit Users' },
   { name: 'deactivate_users', module: 'Users', description: 'Deactivate Users' },
+  { name: 'delete_users', module: 'Users', description: 'Delete Users' },
   { name: 'manage_permissions', module: 'Users', description: 'Manage Permissions' },
   // Capital
   { name: 'add_capital_injection', module: 'Capital', description: 'Add Capital Injection' },
