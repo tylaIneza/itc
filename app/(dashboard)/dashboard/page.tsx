@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   TrendingUp, ShoppingCart, Package, PiggyBank, DollarSign,
-  AlertTriangle, ArrowUpRight, ArrowDownRight, Banknote
+  AlertTriangle, ArrowUpRight, ArrowDownRight, Banknote, Wallet
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,7 @@ interface DashboardData {
   week: { revenue: number }
   month: { revenue: number }
   totalCapital: number
+  totalBusinessBalance: number
   lowStockCount: number
   coOperaToday: { amount: number; revenueToday: number; businessMoney: number } | null
 }
@@ -185,6 +186,28 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Total Business Balance — admin/manager only */}
+      {isAdmin && (
+        <Card className="border-l-4 border-l-blue-600 bg-blue-50 dark:bg-blue-950/20">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-blue-600 rounded-xl shrink-0">
+                <Wallet className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-muted-foreground">Total Business Balance</p>
+                <p className="text-3xl font-bold text-blue-700 dark:text-blue-400">{formatCurrency(d?.totalBusinessBalance || 0)}</p>
+                <p className="text-xs text-muted-foreground mt-1">Capital + All Revenue − All Expenses − All Co-opera</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-xs text-muted-foreground">Capital Injected</p>
+                <p className="text-lg font-semibold">{formatCurrency(d?.totalCapital || 0)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Co-opera widget — admin/manager only */}
       {isAdmin && (
       <Card className="border-l-4 border-l-green-500">
@@ -286,10 +309,10 @@ export default function DashboardPage() {
               <p className="text-xl font-bold">{formatCurrency(d?.month.revenue || 0)}</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border border-blue-200 dark:border-blue-800">
             <CardContent className="p-5">
-              <p className="text-sm text-muted-foreground mb-1">Total Capital Injected</p>
-              <p className="text-xl font-bold">{formatCurrency(d?.totalCapital || 0)}</p>
+              <p className="text-sm text-muted-foreground mb-1">Total Business Balance</p>
+              <p className="text-xl font-bold text-blue-600">{formatCurrency(d?.totalBusinessBalance || 0)}</p>
             </CardContent>
           </Card>
         </div>

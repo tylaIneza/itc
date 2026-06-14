@@ -14,7 +14,7 @@ router.get('/overview', authenticate, async (req, res) => {
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
     const monthStart = startOfMonth(now);
 
-    const [todaySales, weekSales, monthSales, todayExpenses, coOperaToday, totalCapital, lowStockCount] = await Promise.all([
+    const [todaySales, weekSales, monthSales, todayExpenses, coOperaToday, totalCapital, lowStockCount, allTimeRevenue, allTimeExpenses, allTimeCoOpera] = await Promise.all([
       prisma.sale.aggregate({ where: { createdAt: { gte: todayStart, lte: todayEnd } }, _sum: { totalAmount: true }, _count: { id: true } }),
       prisma.sale.aggregate({ where: { createdAt: { gte: weekStart, lte: todayEnd } }, _sum: { totalAmount: true } }),
       prisma.sale.aggregate({ where: { createdAt: { gte: monthStart, lte: todayEnd } }, _sum: { totalAmount: true } }),
@@ -22,6 +22,9 @@ router.get('/overview', authenticate, async (req, res) => {
       prisma.coOpera.findFirst({ where: { date: todayStart } }),
       prisma.capitalInjection.aggregate({ _sum: { amount: true } }),
       prisma.product.count({ where: { isActive: true, quantity: { lte: 5 } } }),
+      prisma.sale.aggregate({ _sum: { totalAmount: true } }),
+      prisma.expense.aggregate({ where: { status: 'APPROVED' }, _sum: { amount: true } }),
+      prisma.coOpera.aggregate({ _sum: { amount: true } }),
     ]);
 
     const revenueToday = parseFloat(todaySales._sum.totalAmount || 0);
@@ -29,6 +32,12 @@ router.get('/overview', authenticate, async (req, res) => {
     const coOperaAmount = coOperaToday ? parseFloat(coOperaToday.amount) : 0;
     const businessMoney = coOperaToday ? parseFloat(coOperaToday.businessMoney) : revenueToday - expensesToday;
     const netProfit = revenueToday - expensesToday - coOperaAmount;
+
+    const capital = parseFloat(totalCapital._sum.amount || 0);
+    const totalRevenue = parseFloat(allTimeRevenue._sum.totalAmount || 0);
+    const totalExpenses = parseFloat(allTimeExpenses._sum.amount || 0);
+    const totalCoOpera = parseFloat(allTimeCoOpera._sum.amount || 0);
+    const totalBusinessBalance = capital + totalRevenue - totalExpenses - totalCoOpera;
 
     return successResponse(res, {
       today: {
@@ -41,7 +50,8 @@ router.get('/overview', authenticate, async (req, res) => {
       },
       week: { revenue: parseFloat(weekSales._sum.totalAmount || 0) },
       month: { revenue: parseFloat(monthSales._sum.totalAmount || 0) },
-      totalCapital: parseFloat(totalCapital._sum.amount || 0),
+      totalCapital: capital,
+      totalBusinessBalance,
       lowStockCount,
       coOperaToday,
     });
