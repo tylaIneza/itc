@@ -176,7 +176,7 @@ export default function DashboardPage() {
           <StatCard title="Sales Count" value={d?.today.salesCount || 0} icon={ShoppingCart} color="bg-purple-600" prefix="" />
           <StatCard title="Expenses" value={d?.today.expenses || 0} icon={Receipt} color="bg-red-500" />
           <StatCard title="Co-opera" value={d?.today.coOpera || 0} icon={PiggyBank} color="bg-green-600" />
-          <StatCard title="Business Money" value={d?.today.businessMoney || 0} icon={Banknote} color="bg-cyan-600" />
+          <StatCard title="Business Money" value={d?.totalBusinessBalance || 0} icon={Banknote} color="bg-cyan-600" />
           <StatCard title="Net Profit" value={d?.today.netProfit || 0} icon={DollarSign} color={d && d.today.netProfit >= 0 ? 'bg-emerald-600' : 'bg-red-600'} />
         </div>
       ) : (
