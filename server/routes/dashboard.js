@@ -14,15 +14,19 @@ router.get('/overview', authenticate, async (req, res) => {
     const weekStart = startOfWeek(now, { weekStartsOn: 1 });
     const monthStart = startOfMonth(now);
 
+    const roleName = req.user.role.name;
+    const isAdminOrManager = roleName === 'Admin' || roleName === 'Manager';
+    const userSaleFilter = isAdminOrManager ? {} : { userId: req.userId };
+
     const [todaySales, weekSales, monthSales, todayExpenses, coOperaToday, totalCapital, lowStockCount, allTimeRevenue, allTimeExpenses, allTimeCoOpera] = await Promise.all([
-      prisma.sale.aggregate({ where: { createdAt: { gte: todayStart, lte: todayEnd } }, _sum: { totalAmount: true }, _count: { id: true } }),
-      prisma.sale.aggregate({ where: { createdAt: { gte: weekStart, lte: todayEnd } }, _sum: { totalAmount: true } }),
-      prisma.sale.aggregate({ where: { createdAt: { gte: monthStart, lte: todayEnd } }, _sum: { totalAmount: true } }),
+      prisma.sale.aggregate({ where: { ...userSaleFilter, createdAt: { gte: todayStart, lte: todayEnd } }, _sum: { totalAmount: true }, _count: { id: true } }),
+      prisma.sale.aggregate({ where: { ...userSaleFilter, createdAt: { gte: weekStart, lte: todayEnd } }, _sum: { totalAmount: true } }),
+      prisma.sale.aggregate({ where: { ...userSaleFilter, createdAt: { gte: monthStart, lte: todayEnd } }, _sum: { totalAmount: true } }),
       prisma.expense.aggregate({ where: { date: { gte: todayStart, lte: todayEnd }, status: 'APPROVED' }, _sum: { amount: true } }),
       prisma.coOpera.findFirst({ where: { date: todayStart } }),
       prisma.capitalInjection.aggregate({ _sum: { amount: true } }),
       prisma.product.count({ where: { isActive: true, quantity: { lte: 5 } } }),
-      prisma.sale.aggregate({ _sum: { totalAmount: true } }),
+      prisma.sale.aggregate({ where: userSaleFilter, _sum: { totalAmount: true } }),
       prisma.expense.aggregate({ where: { status: 'APPROVED' }, _sum: { amount: true } }),
       prisma.coOpera.aggregate({ _sum: { amount: true } }),
     ]);
