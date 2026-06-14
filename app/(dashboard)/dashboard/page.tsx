@@ -49,12 +49,13 @@ interface TopProduct {
   revenue: number
 }
 
-interface SellerStat {
+interface UserAnalytic {
   userId: number
   fullName: string
   role: string
-  salesCount: number
-  revenue: number
+  daily: { revenue: number; salesCount: number; expenses: number }
+  weekly: { revenue: number; salesCount: number; expenses: number }
+  monthly: { revenue: number; salesCount: number; expenses: number }
 }
 
 function StatCard({
@@ -101,8 +102,7 @@ export default function DashboardPage() {
   const [recentTransactions, setRecentTransactions] = useState<unknown[]>([])
   const [loading, setLoading] = useState(true)
   const [coOperaConfig, setCoOperaConfig] = useState<{ targetAmount: number }>({ targetAmount: 17500 })
-  const [sellerStats, setSellerStats] = useState<SellerStat[]>([])
-  const [sellerPeriod, setSellerPeriod] = useState<'today' | 'week' | 'month'>('today')
+  const [userAnalytics, setUserAnalytics] = useState<UserAnalytic[]>([])
 
   const isAdminRole = user?.role?.name === 'Admin' || user?.role?.name === 'Manager'
 
@@ -128,13 +128,12 @@ export default function DashboardPage() {
     }
   }, [])
 
-  const loadSellerStats = useCallback(async (period: 'today' | 'week' | 'month') => {
-    if (!isAdminRole) return
-    const res = await api.get<SellerStat[]>(`/dashboard/sellers?period=${period}`)
-    if (res.success) setSellerStats(res.data)
-  }, [isAdminRole])
+  const loadUserAnalytics = useCallback(async () => {
+    const res = await api.get<UserAnalytic[]>('/dashboard/user-analytics')
+    if (res.success) setUserAnalytics(res.data)
+  }, [])
 
-  useEffect(() => { loadSellerStats(sellerPeriod) }, [sellerPeriod, loadSellerStats])
+  useEffect(() => { loadUserAnalytics() }, [loadUserAnalytics])
 
   useEffect(() => {
     loadData()
@@ -143,11 +142,11 @@ export default function DashboardPage() {
   // Real-time updates
   useSocketEvent('sale:created', useCallback(() => {
     loadData()
-    loadSellerStats(sellerPeriod)
+    loadUserAnalytics()
     toast({ title: 'New Sale', description: 'A new sale has been recorded', variant: 'default' })
-  }, [loadData, loadSellerStats, sellerPeriod]))
+  }, [loadData, loadUserAnalytics]))
 
-  useSocketEvent('dashboard:refresh', useCallback(() => { loadData(); loadSellerStats(sellerPeriod) }, [loadData, loadSellerStats, sellerPeriod]))
+  useSocketEvent('dashboard:refresh', useCallback(() => { loadData(); loadUserAnalytics() }, [loadData, loadUserAnalytics]))
 
   if (loading) {
     return (
@@ -271,58 +270,58 @@ export default function DashboardPage() {
       </Card>
       )}
 
-      {/* Seller Analytics — admin/manager only */}
-      {isAdmin && (
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Users className="w-4 h-4 text-purple-600" />
-                Seller Performance
-              </CardTitle>
-              <div className="flex gap-1">
-                {(['today', 'week', 'month'] as const).map(p => (
-                  <Button key={p} size="sm" variant={sellerPeriod === p ? 'default' : 'outline'}
-                    className="text-xs capitalize h-7 px-3"
-                    onClick={() => setSellerPeriod(p)}>
-                    {p === 'today' ? 'Today' : p === 'week' ? 'This Week' : 'This Month'}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {sellerStats.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No sales recorded for this period</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Seller</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="text-right">Sales</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sellerStats.map((s, i) => (
-                    <TableRow key={s.userId}>
-                      <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground w-5">#{i + 1}</span>
-                          {s.fullName}
-                        </div>
-                      </TableCell>
-                      <TableCell><Badge variant="info" className="text-xs">{s.role}</Badge></TableCell>
-                      <TableCell className="text-right">{s.salesCount}</TableCell>
-                      <TableCell className="text-right font-semibold text-green-600">{formatCurrency(s.revenue)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+      {/* User Analytics — all users see their own, admin/manager see everyone */}
+      {userAnalytics.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-base font-semibold flex items-center gap-2">
+            <Users className="w-4 h-4 text-purple-600" />
+            {isAdmin ? 'User Analytics' : 'My Analytics'}
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {userAnalytics.map(u => (
+              <Card key={u.userId} className="overflow-hidden">
+                <CardHeader className="pb-2 pt-4 px-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-sm">{u.fullName}</p>
+                    <Badge variant="info" className="text-xs">{u.role}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-0 pb-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/40">
+                        <TableHead className="text-xs px-4 py-2 w-24"></TableHead>
+                        <TableHead className="text-xs px-3 py-2 text-center">Today</TableHead>
+                        <TableHead className="text-xs px-3 py-2 text-center">This Week</TableHead>
+                        <TableHead className="text-xs px-3 py-2 text-center">This Month</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="text-xs text-muted-foreground px-4 py-2 font-medium">Revenue</TableCell>
+                        <TableCell className="text-xs text-center px-3 py-2 font-semibold text-green-600">{formatCurrency(u.daily.revenue)}</TableCell>
+                        <TableCell className="text-xs text-center px-3 py-2 font-semibold text-green-600">{formatCurrency(u.weekly.revenue)}</TableCell>
+                        <TableCell className="text-xs text-center px-3 py-2 font-semibold text-green-600">{formatCurrency(u.monthly.revenue)}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="text-xs text-muted-foreground px-4 py-2 font-medium">Expenses</TableCell>
+                        <TableCell className="text-xs text-center px-3 py-2 text-red-500">{formatCurrency(u.daily.expenses)}</TableCell>
+                        <TableCell className="text-xs text-center px-3 py-2 text-red-500">{formatCurrency(u.weekly.expenses)}</TableCell>
+                        <TableCell className="text-xs text-center px-3 py-2 text-red-500">{formatCurrency(u.monthly.expenses)}</TableCell>
+                      </TableRow>
+                      <TableRow className="bg-muted/20">
+                        <TableCell className="text-xs text-muted-foreground px-4 py-2 font-medium">Sales</TableCell>
+                        <TableCell className="text-xs text-center px-3 py-2">{u.daily.salesCount}</TableCell>
+                        <TableCell className="text-xs text-center px-3 py-2">{u.weekly.salesCount}</TableCell>
+                        <TableCell className="text-xs text-center px-3 py-2">{u.monthly.salesCount}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Charts row */}

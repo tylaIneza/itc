@@ -129,46 +129,61 @@ router.get('/top-products', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/dashboard/sellers?period=today|week|month
-router.get('/sellers', authenticate, async (req, res) => {
+// GET /api/dashboard/user-analytics
+// Admin/Manager: returns analytics for every active user
+// Other roles: returns analytics for themselves only
+router.get('/user-analytics', authenticate, async (req, res) => {
   try {
-    const roleName = req.user.role.name;
-    if (roleName !== 'Admin' && roleName !== 'Manager') {
-      return errorResponse(res, 'Access denied', 403);
-    }
-
     const now = new Date();
-    const { period = 'today' } = req.query;
-    let dateFilter;
-    if (period === 'week') dateFilter = { gte: startOfWeek(now, { weekStartsOn: 1 }), lte: endOfDay(now) };
-    else if (period === 'month') dateFilter = { gte: startOfMonth(now), lte: endOfDay(now) };
-    else dateFilter = { gte: startOfDay(now), lte: endOfDay(now) };
+    const todayStart = startOfDay(now);
+    const todayEnd = endOfDay(now);
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const monthStart = startOfMonth(now);
 
-    const salesByUser = await prisma.sale.groupBy({
-      by: ['userId'],
-      where: { createdAt: dateFilter },
-      _sum: { totalAmount: true },
-      _count: { id: true },
-      orderBy: { _sum: { totalAmount: 'desc' } },
-    });
+    const roleName = req.user.role.name;
+    const isAdminOrManager = roleName === 'Admin' || roleName === 'Manager';
 
-    const enriched = await Promise.all(salesByUser.map(async (item) => {
-      const user = await prisma.user.findUnique({
-        where: { id: item.userId },
-        select: { fullName: true, role: { select: { name: true } } },
-      });
-      return {
-        userId: item.userId,
-        fullName: user?.fullName || 'Unknown',
-        role: user?.role?.name || '',
-        salesCount: item._count.id,
-        revenue: parseFloat(item._sum.totalAmount || 0),
-      };
+    // Determine which users to include
+    const users = isAdminOrManager
+      ? await prisma.user.findMany({ where: { isActive: true }, select: { id: true, fullName: true, role: { select: { name: true } } }, orderBy: { fullName: 'asc' } })
+      : [{ id: req.userId, fullName: req.user.fullName, role: req.user.role }];
+
+    // Aggregate sales for all three periods in one query each
+    const [salesToday, salesWeek, salesMonth, expToday, expWeek, expMonth] = await Promise.all([
+      prisma.sale.groupBy({ by: ['userId'], where: { createdAt: { gte: todayStart, lte: todayEnd } }, _sum: { totalAmount: true }, _count: { id: true } }),
+      prisma.sale.groupBy({ by: ['userId'], where: { createdAt: { gte: weekStart, lte: todayEnd } }, _sum: { totalAmount: true }, _count: { id: true } }),
+      prisma.sale.groupBy({ by: ['userId'], where: { createdAt: { gte: monthStart, lte: todayEnd } }, _sum: { totalAmount: true }, _count: { id: true } }),
+      prisma.expense.groupBy({ by: ['userId'], where: { date: { gte: todayStart, lte: todayEnd }, status: 'APPROVED' }, _sum: { amount: true } }),
+      prisma.expense.groupBy({ by: ['userId'], where: { date: { gte: weekStart, lte: todayEnd }, status: 'APPROVED' }, _sum: { amount: true } }),
+      prisma.expense.groupBy({ by: ['userId'], where: { date: { gte: monthStart, lte: todayEnd }, status: 'APPROVED' }, _sum: { amount: true } }),
+    ]);
+
+    const pick = (rows, userId) => rows.find(r => r.userId === userId);
+
+    const result = users.map(u => ({
+      userId: u.id,
+      fullName: u.fullName,
+      role: u.role?.name || '',
+      daily: {
+        revenue: parseFloat(pick(salesToday, u.id)?._sum.totalAmount || 0),
+        salesCount: pick(salesToday, u.id)?._count.id || 0,
+        expenses: parseFloat(pick(expToday, u.id)?._sum.amount || 0),
+      },
+      weekly: {
+        revenue: parseFloat(pick(salesWeek, u.id)?._sum.totalAmount || 0),
+        salesCount: pick(salesWeek, u.id)?._count.id || 0,
+        expenses: parseFloat(pick(expWeek, u.id)?._sum.amount || 0),
+      },
+      monthly: {
+        revenue: parseFloat(pick(salesMonth, u.id)?._sum.totalAmount || 0),
+        salesCount: pick(salesMonth, u.id)?._count.id || 0,
+        expenses: parseFloat(pick(expMonth, u.id)?._sum.amount || 0),
+      },
     }));
 
-    return successResponse(res, enriched);
+    return successResponse(res, result);
   } catch (err) {
-    return errorResponse(res, 'Failed to fetch seller stats', 500);
+    return errorResponse(res, 'Failed to fetch user analytics', 500);
   }
 });
 
