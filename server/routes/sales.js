@@ -71,6 +71,11 @@ router.get('/today-revenue', authenticate, async (req, res) => {
 // POST /api/sales
 router.post('/', authenticate, hasPermission('create_sale'), async (req, res) => {
   try {
+    const roleName = req.user.role.name;
+    if (roleName === 'Admin' || roleName === 'Manager') {
+      return errorResponse(res, 'Admin and Manager cannot create sales', 403);
+    }
+
     const { items, notes } = req.body;
     if (!items || items.length === 0) return errorResponse(res, 'Sale must have at least one item', 400);
 

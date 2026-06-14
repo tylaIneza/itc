@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast'
 import { formatCurrency, formatDateTime } from '@/lib/utils'
 import { usePermissions } from '@/hooks/use-permissions'
 import { useSocketEvent } from '@/hooks/use-socket'
+import { useAuthStore } from '@/lib/store'
 import api from '@/lib/api'
 
 interface Product {
@@ -421,6 +422,7 @@ function NewSaleDialog({ onCreated }: { onCreated: () => void }) {
 export default function SalesPage() {
   const { toast } = useToast()
   const { checkPermission } = usePermissions()
+  const { user } = useAuthStore()
   const [sales, setSales] = useState<Sale[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -428,7 +430,8 @@ export default function SalesPage() {
   const [loading, setLoading] = useState(true)
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
 
-  const canCreate = checkPermission('create_sale')
+  const roleName = user?.role?.name
+  const canCreate = checkPermission('create_sale') && roleName !== 'Admin' && roleName !== 'Manager'
   const canDelete = checkPermission('delete_sale')
   const canView = checkPermission('view_sales')
 
