@@ -68,11 +68,11 @@ function RecordCoOperaDialog({ config, onRecorded }: { config: CoOperaConfig; on
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ amount: String(config.targetAmount), notes: '' })
-  const [revenueToday, setRevenueToday] = useState<number | null>(null)
+  const [revenueToday, setRevenueToday] = useState(0)
   const [loadingRevenue, setLoadingRevenue] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const businessMoney = (revenueToday ?? 0) - parseFloat(form.amount || '0')
+  const businessMoney = revenueToday - parseFloat(form.amount || '0')
 
   useEffect(() => {
     if (!open) return
@@ -125,15 +125,19 @@ function RecordCoOperaDialog({ config, onRecorded }: { config: CoOperaConfig; on
               <Label>Co-opera Amount (FRW) * <span className="text-muted-foreground text-xs">(min: {formatCurrency(config.minimumAmount)})</span></Label>
               <Input type="number" min={config.minimumAmount} value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
             </div>
-            {revenueToday !== null && (
-              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 text-sm">
-                <p className="text-muted-foreground">Business Money (after co-opera)</p>
-                <p className={`text-xl font-bold ${businessMoney >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
-                  {formatCurrency(businessMoney)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">= {formatCurrency(revenueToday)} - {formatCurrency(parseFloat(form.amount || '0'))}</p>
-              </div>
-            )}
+            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 text-sm">
+              <p className="text-muted-foreground">Business Money (after co-opera)</p>
+              {loadingRevenue ? (
+                <p className="text-xl font-bold text-muted-foreground">Loading...</p>
+              ) : (
+                <>
+                  <p className={`text-xl font-bold ${businessMoney >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
+                    {formatCurrency(businessMoney)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">= {formatCurrency(revenueToday)} - {formatCurrency(parseFloat(form.amount || '0'))}</p>
+                </>
+              )}
+            </div>
             <div className="space-y-1">
               <Label>Notes (optional)</Label>
               <Input placeholder="Any notes..." value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} />
