@@ -145,7 +145,7 @@ router.get('/user-analytics', authenticate, async (req, res) => {
 
     // Determine which users to include
     const users = isAdminOrManager
-      ? await prisma.user.findMany({ where: { isActive: true }, select: { id: true, fullName: true, role: { select: { name: true } } }, orderBy: { fullName: 'asc' } })
+      ? await prisma.user.findMany({ where: { isActive: true, role: { name: 'Seller' } }, select: { id: true, fullName: true, role: { select: { name: true } } }, orderBy: { fullName: 'asc' } })
       : [{ id: req.userId, fullName: req.user.fullName, role: req.user.role }];
 
     // Aggregate sales for all three periods in one query each
