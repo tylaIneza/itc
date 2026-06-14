@@ -129,9 +129,10 @@ router.get('/today', authenticate, async (req, res) => {
 // POST /api/co-opera/record
 router.post('/record', authenticate, hasPermission('record_co_opera'), async (req, res) => {
   try {
-    const { amount, revenueToday, date, notes } = req.body;
+    const { amount, date, notes } = req.body;
     const recordDateStr = date ? format(new Date(date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
     const recordDateUtc = new Date(`${recordDateStr}T00:00:00.000Z`);
+    const recordDayEnd = new Date(`${recordDateStr}T23:59:59.999Z`);
 
     if (isSaturday(new Date(recordDateStr))) {
       return errorResponse(res, 'Co-opera cannot be recorded on Saturdays because the shop is closed.', 400);
@@ -149,13 +150,18 @@ router.post('/record', authenticate, hasPermission('record_co_opera'), async (re
       return errorResponse(res, `Co-opera amount must be at least ${minAmount.toLocaleString()} FRW`, 400);
     }
 
-    if (!revenueToday) return errorResponse(res, 'Revenue today is required', 400);
-
     // Check for existing record on this date
     const existing = await prisma.coOpera.findFirst({ where: { date: recordDateUtc } });
     if (existing) return errorResponse(res, 'Co-opera already recorded for this date', 409);
 
-    const businessMoney = parseFloat(revenueToday) - parseFloat(amount);
+    // Auto-fetch today's revenue from sales
+    const salesTotal = await prisma.sale.aggregate({
+      where: { createdAt: { gte: recordDateUtc, lte: recordDayEnd } },
+      _sum: { totalAmount: true },
+    });
+    const revenueToday = parseFloat(salesTotal._sum.totalAmount || 0);
+
+    const businessMoney = revenueToday - parseFloat(amount);
 
     const record = await prisma.coOpera.create({
       data: {

@@ -67,14 +67,24 @@ interface YearlySummary {
 function RecordCoOperaDialog({ config, onRecorded }: { config: CoOperaConfig; onRecorded: () => void }) {
   const { toast } = useToast()
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ amount: String(config.targetAmount), revenueToday: '', notes: '' })
+  const [form, setForm] = useState({ amount: String(config.targetAmount), notes: '' })
+  const [revenueToday, setRevenueToday] = useState<number | null>(null)
+  const [loadingRevenue, setLoadingRevenue] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const businessMoney = parseFloat(form.revenueToday || '0') - parseFloat(form.amount || '0')
+  const businessMoney = (revenueToday ?? 0) - parseFloat(form.amount || '0')
+
+  useEffect(() => {
+    if (!open) return
+    setLoadingRevenue(true)
+    api.get<{ today: { revenue: number } }>('/dashboard/overview')
+      .then(res => { if (res.success) setRevenueToday(res.data.today.revenue) })
+      .finally(() => setLoadingRevenue(false))
+  }, [open])
 
   const handleSubmit = async () => {
-    if (!form.amount || !form.revenueToday) {
-      toast({ title: 'Error', description: 'Amount and revenue today are required', variant: 'destructive' })
+    if (!form.amount) {
+      toast({ title: 'Error', description: 'Co-opera amount is required', variant: 'destructive' })
       return
     }
     if (parseFloat(form.amount) < config.minimumAmount) {
@@ -103,21 +113,25 @@ function RecordCoOperaDialog({ config, onRecorded }: { config: CoOperaConfig; on
             <DialogDescription>Record today&apos;s co-opera amount</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="p-3 rounded-lg bg-muted border text-sm">
+              <p className="text-xs text-muted-foreground mb-1">Today&apos;s Revenue (from sales)</p>
+              {loadingRevenue ? (
+                <p className="text-lg font-bold text-muted-foreground">Loading...</p>
+              ) : (
+                <p className="text-xl font-bold">{formatCurrency(revenueToday ?? 0)}</p>
+              )}
+            </div>
             <div className="space-y-1">
               <Label>Co-opera Amount (FRW) * <span className="text-muted-foreground text-xs">(min: {formatCurrency(config.minimumAmount)})</span></Label>
               <Input type="number" min={config.minimumAmount} value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} />
             </div>
-            <div className="space-y-1">
-              <Label>Revenue Today (FRW) *</Label>
-              <Input type="number" min={0} placeholder="Total revenue today" value={form.revenueToday} onChange={e => setForm(p => ({ ...p, revenueToday: e.target.value }))} />
-            </div>
-            {form.revenueToday && (
+            {revenueToday !== null && (
               <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 text-sm">
                 <p className="text-muted-foreground">Business Money (after co-opera)</p>
                 <p className={`text-xl font-bold ${businessMoney >= 0 ? 'text-blue-600' : 'text-red-500'}`}>
                   {formatCurrency(businessMoney)}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">= {formatCurrency(parseFloat(form.revenueToday))} - {formatCurrency(parseFloat(form.amount))}</p>
+                <p className="text-xs text-muted-foreground mt-1">= {formatCurrency(revenueToday)} - {formatCurrency(parseFloat(form.amount || '0'))}</p>
               </div>
             )}
             <div className="space-y-1">
