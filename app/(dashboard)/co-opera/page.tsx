@@ -303,7 +303,7 @@ export default function CoOperaPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Business Money</p>
-                <p className="text-xl font-bold text-blue-600">{formatCurrency(todayStatus.record.businessMoney)}</p>
+                <p className={`text-xl font-bold ${todayStatus.record.businessMoney >= 0 ? 'text-blue-600' : 'text-red-500'}`}>{formatCurrency(todayStatus.record.businessMoney)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Status</p>
