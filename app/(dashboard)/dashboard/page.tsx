@@ -2,13 +2,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   TrendingUp, ShoppingCart, Package, PiggyBank, DollarSign,
-  AlertTriangle, ArrowUpRight, ArrowDownRight, Banknote, Wallet
+  AlertTriangle, ArrowUpRight, ArrowDownRight, Banknote, Wallet, Users
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import { useAuthStore } from '@/lib/store'
 import api from '@/lib/api'
@@ -45,6 +46,14 @@ interface ChartData {
 interface TopProduct {
   name: string
   quantity: number
+  revenue: number
+}
+
+interface SellerStat {
+  userId: number
+  fullName: string
+  role: string
+  salesCount: number
   revenue: number
 }
 
@@ -92,6 +101,10 @@ export default function DashboardPage() {
   const [recentTransactions, setRecentTransactions] = useState<unknown[]>([])
   const [loading, setLoading] = useState(true)
   const [coOperaConfig, setCoOperaConfig] = useState<{ targetAmount: number }>({ targetAmount: 17500 })
+  const [sellerStats, setSellerStats] = useState<SellerStat[]>([])
+  const [sellerPeriod, setSellerPeriod] = useState<'today' | 'week' | 'month'>('today')
+
+  const isAdminRole = user?.role?.name === 'Admin' || user?.role?.name === 'Manager'
 
   const loadData = useCallback(async () => {
     try {
@@ -115,6 +128,14 @@ export default function DashboardPage() {
     }
   }, [])
 
+  const loadSellerStats = useCallback(async (period: 'today' | 'week' | 'month') => {
+    if (!isAdminRole) return
+    const res = await api.get<SellerStat[]>(`/dashboard/sellers?period=${period}`)
+    if (res.success) setSellerStats(res.data)
+  }, [isAdminRole])
+
+  useEffect(() => { loadSellerStats(sellerPeriod) }, [sellerPeriod, loadSellerStats])
+
   useEffect(() => {
     loadData()
   }, [loadData])
@@ -122,10 +143,11 @@ export default function DashboardPage() {
   // Real-time updates
   useSocketEvent('sale:created', useCallback(() => {
     loadData()
+    loadSellerStats(sellerPeriod)
     toast({ title: 'New Sale', description: 'A new sale has been recorded', variant: 'default' })
-  }, [loadData]))
+  }, [loadData, loadSellerStats, sellerPeriod]))
 
-  useSocketEvent('dashboard:refresh', useCallback(() => { loadData() }, [loadData]))
+  useSocketEvent('dashboard:refresh', useCallback(() => { loadData(); loadSellerStats(sellerPeriod) }, [loadData, loadSellerStats, sellerPeriod]))
 
   if (loading) {
     return (
@@ -144,7 +166,7 @@ export default function DashboardPage() {
   }
 
   const d = dashboardData
-  const isAdmin = user?.role?.name === 'Admin' || user?.role?.name === 'Manager'
+  const isAdmin = isAdminRole
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -247,6 +269,60 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+      )}
+
+      {/* Seller Analytics — admin/manager only */}
+      {isAdmin && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="w-4 h-4 text-purple-600" />
+                Seller Performance
+              </CardTitle>
+              <div className="flex gap-1">
+                {(['today', 'week', 'month'] as const).map(p => (
+                  <Button key={p} size="sm" variant={sellerPeriod === p ? 'default' : 'outline'}
+                    className="text-xs capitalize h-7 px-3"
+                    onClick={() => setSellerPeriod(p)}>
+                    {p === 'today' ? 'Today' : p === 'week' ? 'This Week' : 'This Month'}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            {sellerStats.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No sales recorded for this period</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Seller</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead className="text-right">Sales</TableHead>
+                    <TableHead className="text-right">Revenue</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sellerStats.map((s, i) => (
+                    <TableRow key={s.userId}>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-5">#{i + 1}</span>
+                          {s.fullName}
+                        </div>
+                      </TableCell>
+                      <TableCell><Badge variant="info" className="text-xs">{s.role}</Badge></TableCell>
+                      <TableCell className="text-right">{s.salesCount}</TableCell>
+                      <TableCell className="text-right font-semibold text-green-600">{formatCurrency(s.revenue)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Charts row */}

@@ -129,6 +129,49 @@ router.get('/top-products', authenticate, async (req, res) => {
   }
 });
 
+// GET /api/dashboard/sellers?period=today|week|month
+router.get('/sellers', authenticate, async (req, res) => {
+  try {
+    const roleName = req.user.role.name;
+    if (roleName !== 'Admin' && roleName !== 'Manager') {
+      return errorResponse(res, 'Access denied', 403);
+    }
+
+    const now = new Date();
+    const { period = 'today' } = req.query;
+    let dateFilter;
+    if (period === 'week') dateFilter = { gte: startOfWeek(now, { weekStartsOn: 1 }), lte: endOfDay(now) };
+    else if (period === 'month') dateFilter = { gte: startOfMonth(now), lte: endOfDay(now) };
+    else dateFilter = { gte: startOfDay(now), lte: endOfDay(now) };
+
+    const salesByUser = await prisma.sale.groupBy({
+      by: ['userId'],
+      where: { createdAt: dateFilter },
+      _sum: { totalAmount: true },
+      _count: { id: true },
+      orderBy: { _sum: { totalAmount: 'desc' } },
+    });
+
+    const enriched = await Promise.all(salesByUser.map(async (item) => {
+      const user = await prisma.user.findUnique({
+        where: { id: item.userId },
+        select: { fullName: true, role: { select: { name: true } } },
+      });
+      return {
+        userId: item.userId,
+        fullName: user?.fullName || 'Unknown',
+        role: user?.role?.name || '',
+        salesCount: item._count.id,
+        revenue: parseFloat(item._sum.totalAmount || 0),
+      };
+    }));
+
+    return successResponse(res, enriched);
+  } catch (err) {
+    return errorResponse(res, 'Failed to fetch seller stats', 500);
+  }
+});
+
 // GET /api/dashboard/recent-transactions
 router.get('/recent-transactions', authenticate, async (req, res) => {
   try {
