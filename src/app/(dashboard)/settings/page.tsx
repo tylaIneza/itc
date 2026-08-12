@@ -7,15 +7,30 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { Settings, ShieldCheck, Users, Lock, Unlock } from 'lucide-react';
 
-const PERMISSION_LABELS: Record<string, { label: string; description: string }> = {
-  can_view_reports:    { label: 'View Reports',          description: 'Access analytics and reports' },
-  can_export_reports:  { label: 'Export Reports',        description: 'Download PDF/CSV reports' },
-  can_manage_expenses: { label: 'Manage Expenses',       description: 'Add and edit expenses' },
-  can_approve_expenses:{ label: 'Approve Expenses',      description: 'Approve or reject expense requests' },
-  can_manage_stock:    { label: 'Manage Stock',          description: 'Adjust product stock levels' },
-  can_manage_users:    { label: 'Manage Users',          description: 'Create and manage user accounts' },
-  can_view_audit_logs: { label: 'View Audit Logs',       description: 'Access system audit trail' },
-  can_sell:            { label: 'Make Sales',            description: 'Record sales transactions' },
+const PERMISSION_LABELS: Record<string, { label: string; description: string; module: string }> = {
+  create_sale:              { label: 'Create Sales',       description: 'Record new sales transactions',        module: 'Sales' },
+  edit_sale:                { label: 'Edit Sales',         description: 'Modify existing sales',                 module: 'Sales' },
+  delete_sale:               { label: 'Delete Sales',       description: 'Remove sales records',                  module: 'Sales' },
+  view_sales:                { label: 'View Sales',         description: 'View sales history',                    module: 'Sales' },
+  create_product:            { label: 'Create Products',    description: 'Add new products',                      module: 'Products' },
+  edit_product:              { label: 'Edit Products',      description: 'Modify product details',                module: 'Products' },
+  delete_product:            { label: 'Delete Products',    description: 'Remove products',                       module: 'Products' },
+  adjust_stock:              { label: 'Adjust Stock',       description: 'Adjust product stock levels',           module: 'Products' },
+  view_stock:                { label: 'View Stock',         description: 'View stock levels',                     module: 'Products' },
+  create_expense:            { label: 'Create Expenses',    description: 'Add new expenses',                      module: 'Expenses' },
+  edit_expense:              { label: 'Edit Expenses',      description: 'Modify existing expenses',              module: 'Expenses' },
+  delete_expense:            { label: 'Delete Expenses',    description: 'Remove expenses',                       module: 'Expenses' },
+  approve_expense_requests:  { label: 'Approve Expenses',   description: 'Approve or reject expense requests',    module: 'Expenses' },
+  view_reports:              { label: 'View Reports',       description: 'Access analytics and reports',          module: 'Reports' },
+  export_pdf:                { label: 'Export PDF',         description: 'Download PDF reports',                  module: 'Reports' },
+  export_excel:              { label: 'Export Excel',       description: 'Download Excel/CSV reports',            module: 'Reports' },
+  create_users:              { label: 'Create Users',       description: 'Create new user accounts',              module: 'Users' },
+  edit_users:                { label: 'Edit Users',         description: 'Modify user accounts',                  module: 'Users' },
+  deactivate_users:          { label: 'Deactivate Users',   description: 'Suspend or reactivate user accounts',   module: 'Users' },
+  manage_permissions:        { label: 'Manage Permissions', description: 'Grant or revoke user permissions',      module: 'Users' },
+  add_capital_injection:     { label: 'Add Capital',        description: 'Record capital injections',             module: 'Capital' },
+  manage_settings:           { label: 'Manage Settings',    description: 'Change system settings',                module: 'Settings' },
+  view_audit_logs:           { label: 'View Audit Logs',    description: 'Access system audit trail',             module: 'Audit Logs' },
 };
 
 const ROLE_COLORS: Record<string, string> = {

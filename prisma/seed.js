@@ -16,17 +16,32 @@ async function main() {
 
   // ── Permissions ────────────────────────────────────────────────────────────
   const permDefs = [
-    { name: 'can_sell',             description: 'Create and manage sales' },
-    { name: 'can_view_reports',     description: 'View analytics and reports' },
-    { name: 'can_manage_stock',     description: 'Add and edit products/stock' },
-    { name: 'can_manage_expenses',  description: 'Add and edit expenses' },
-    { name: 'can_manage_users',     description: 'Create and manage users' },
-    { name: 'can_view_audit_logs',  description: 'View system audit logs' },
-    { name: 'can_export_reports',   description: 'Export reports to PDF/CSV' },
-    { name: 'can_approve_expenses', description: 'Approve or reject expense edit requests' },
+    { name: 'create_sale',             module: 'Sales',      description: 'Record new sales transactions' },
+    { name: 'edit_sale',               module: 'Sales',      description: 'Modify existing sales' },
+    { name: 'delete_sale',             module: 'Sales',      description: 'Remove sales records' },
+    { name: 'view_sales',              module: 'Sales',      description: 'View sales history' },
+    { name: 'create_product',          module: 'Products',   description: 'Add new products' },
+    { name: 'edit_product',            module: 'Products',   description: 'Modify product details' },
+    { name: 'delete_product',          module: 'Products',   description: 'Remove products' },
+    { name: 'adjust_stock',            module: 'Products',   description: 'Adjust product stock levels' },
+    { name: 'view_stock',              module: 'Products',   description: 'View stock levels' },
+    { name: 'create_expense',          module: 'Expenses',   description: 'Add new expenses' },
+    { name: 'edit_expense',            module: 'Expenses',   description: 'Modify existing expenses' },
+    { name: 'delete_expense',          module: 'Expenses',   description: 'Remove expenses' },
+    { name: 'approve_expense_requests',module: 'Expenses',   description: 'Approve or reject expense edit requests' },
+    { name: 'view_reports',            module: 'Reports',    description: 'View analytics and reports' },
+    { name: 'export_pdf',              module: 'Reports',    description: 'Export reports to PDF' },
+    { name: 'export_excel',            module: 'Reports',    description: 'Export reports to Excel/CSV' },
+    { name: 'create_users',            module: 'Users',      description: 'Create new user accounts' },
+    { name: 'edit_users',              module: 'Users',      description: 'Modify user accounts' },
+    { name: 'deactivate_users',        module: 'Users',      description: 'Suspend or reactivate user accounts' },
+    { name: 'manage_permissions',      module: 'Users',      description: 'Grant or revoke user permissions' },
+    { name: 'add_capital_injection',   module: 'Capital',    description: 'Record capital injections' },
+    { name: 'manage_settings',         module: 'Settings',   description: 'Change system settings' },
+    { name: 'view_audit_logs',         module: 'Audit Logs', description: 'View system audit logs' },
   ];
   for (const p of permDefs) {
-    await prisma.permission.upsert({ where: { name: p.name }, update: {}, create: p });
+    await prisma.permission.upsert({ where: { name: p.name }, update: { module: p.module }, create: p });
   }
   const perms = await prisma.permission.findMany();
   const perm  = (name) => perms.find(p => p.name === name).id;
@@ -41,8 +56,8 @@ async function main() {
       create: { role_id: admin.id, permission_id: p.id },
     });
   }
-  // Seller: sell + manage expenses
-  for (const name of ['can_sell', 'can_manage_expenses']) {
+  // Seller: sell + record expenses
+  for (const name of ['create_sale', 'view_sales', 'create_expense', 'edit_expense']) {
     await prisma.rolePermission.upsert({
       where:  { role_id_permission_id: { role_id: seller.id, permission_id: perm(name) } },
       update: {},
@@ -50,7 +65,11 @@ async function main() {
     });
   }
   // Manager: everything except user management
-  for (const name of ['can_sell','can_view_reports','can_manage_stock','can_manage_expenses','can_view_audit_logs','can_export_reports','can_approve_expenses']) {
+  for (const name of [
+    'create_sale', 'view_sales', 'view_reports', 'export_pdf',
+    'create_product', 'edit_product', 'adjust_stock', 'delete_product', 'view_stock',
+    'create_expense', 'edit_expense', 'approve_expense_requests', 'view_audit_logs',
+  ]) {
     await prisma.rolePermission.upsert({
       where:  { role_id_permission_id: { role_id: manager.id, permission_id: perm(name) } },
       update: {},

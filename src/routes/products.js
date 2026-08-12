@@ -13,13 +13,14 @@ const upload = multer({
 });
 
 router.use(authenticate, requireCompanyScope);
+router.get('/categories', ctrl.getCategories);
 router.get('/low-stock', ctrl.getLowStock);
 router.get('/', ctrl.getAll);
 router.get('/:id', ctrl.getOne);
-router.post('/', requirePermission('can_manage_stock'), ctrl.create);
-router.post('/import', requirePermission('can_manage_stock'), upload.single('file'), ctrl.importCSV);
-router.put('/:id', requirePermission('can_manage_stock'), ctrl.update);
-router.post('/:id/stock', requirePermission('can_manage_stock'), ctrl.adjustStock);
-router.delete('/:id', requirePermission('can_manage_stock'), ctrl.remove);
+router.post('/', requirePermission('create_product'), ctrl.create);
+router.post('/import', requirePermission('create_product'), upload.single('file'), ctrl.importCSV);
+router.put('/:id', requirePermission('edit_product'), ctrl.update);
+router.post('/:id/stock', requirePermission('adjust_stock'), ctrl.adjustStock);
+router.delete('/:id', requirePermission('delete_product'), ctrl.remove);
 
 module.exports = router;

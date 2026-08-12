@@ -30,7 +30,7 @@ const emptyForm = {
 
 function ExpensesContent() {
   const { user, isAdmin, hasPermission } = useAuth();
-  const canApprove = isAdmin || user?.role === 'manager' || hasPermission('can_approve_expenses');
+  const canApprove = isAdmin || user?.role === 'manager' || hasPermission('approve_expense_requests');
   const searchParams = useSearchParams();
 
   const initialTab = (searchParams.get('tab') as Tab) || 'expenses';

@@ -2,7 +2,7 @@ const prisma = require('../lib/prisma');
 const { auditLog } = require('../middleware/audit');
 
 const canApprove = (user) =>
-  user.role === 'admin' || user.permissions?.includes('can_approve_expenses');
+  user.role === 'admin' || user.permissions?.includes('approve_expense_requests');
 
 // ── EXPENSES ─────────────────────────────────────────────────────────────────
 

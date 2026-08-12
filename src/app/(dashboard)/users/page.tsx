@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { usersApi } from '@/lib/api';
+import { usersApi, settingsApi } from '@/lib/api';
 import { formatDateTime } from '@/lib/utils';
 import type { User } from '@/types';
 import Modal from '@/components/ui/Modal';
@@ -11,13 +11,8 @@ import toast from 'react-hot-toast';
 import { Plus, Edit2, Trash2, Users, CheckCircle, ShieldCheck, UserX, UserCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
-const PERMISSIONS = [
-  { id: 1, name: 'can_sell',            label: 'Can Sell' },
-  { id: 2, name: 'can_view_reports',    label: 'View Reports' },
-  { id: 3, name: 'can_manage_stock',    label: 'Manage Stock' },
-  { id: 4, name: 'can_manage_expenses', label: 'Manage Expenses' },
-  { id: 5, name: 'can_export_reports',  label: 'Export Reports' },
-];
+const permLabel = (name: string) =>
+  name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
 const ROLES = [
   { id: '2', label: 'Seller',  description: 'Can sell products and view own stats' },
@@ -40,6 +35,11 @@ export default function UsersPage() {
   const [selected, setSelected] = useState<any>(null);
   const [form,    setForm]    = useState(emptyForm);
   const [saving,  setSaving]  = useState(false);
+  const [permissions, setPermissions] = useState<Array<{ id: number; name: string }>>([]);
+
+  useEffect(() => {
+    settingsApi.getRolePermissions().then(r => setPermissions(r.data.permissions)).catch(() => {});
+  }, []);
 
   if (currentUser && !isStrictAdmin) {
     return <p className="text-center text-gray-500 py-20">Access denied.</p>;
@@ -297,11 +297,11 @@ export default function UsersPage() {
             <div>
               <label className="label">Additional Permissions for Seller</label>
               <div className="grid grid-cols-2 gap-2 mt-1">
-                {PERMISSIONS.filter(p => p.name !== 'can_sell').map(p => (
+                {permissions.filter(p => p.name !== 'create_sale').map(p => (
                   <label key={p.id} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 dark:bg-gray-800 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                     <input type="checkbox" checked={form.permissions.includes(p.id)}
                       onChange={() => togglePermission(p.id)} className="rounded text-blue-700" />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{p.label}</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{permLabel(p.name)}</span>
                   </label>
                 ))}
               </div>

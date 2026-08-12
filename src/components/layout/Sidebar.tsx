@@ -52,7 +52,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const isStrictAdmin   = user?.role === 'admin';
   const isManager       = user?.role === 'manager';
   const isAdminOrMgr    = isStrictAdmin || isManager;
-  const canApprove      = isAdminOrMgr || hasPermission('can_approve_expenses');
+  const canApprove      = isAdminOrMgr || hasPermission('approve_expense_requests');
 
   const links = isSuperAdmin ? superadminLinks
     : isStrictAdmin ? adminLinks

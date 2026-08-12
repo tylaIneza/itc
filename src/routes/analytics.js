@@ -6,6 +6,6 @@ router.use(authenticate, requireCompanyScope);
 router.get('/dashboard',          requireAdminOrManager,                  ctrl.getDashboard);
 router.get('/seller-dashboard',                                           ctrl.getSellerDashboard);
 router.get('/sellers',            requireAdminOrManager,                  ctrl.getSellers);
-router.get('/report',             requirePermission('can_view_reports'),  ctrl.getReport);
+router.get('/report',             requirePermission('view_reports'),  ctrl.getReport);
 
 module.exports = router;

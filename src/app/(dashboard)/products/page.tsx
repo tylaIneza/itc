@@ -13,7 +13,7 @@ const emptyForm = { name: '', quantity: '', wholesale_price: '', low_stock_thres
 
 export default function ProductsPage() {
   const { hasPermission } = useAuth();
-  const canManage = hasPermission('can_manage_stock');
+  const canManage = hasPermission('edit_product');
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);

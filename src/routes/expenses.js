@@ -3,7 +3,7 @@ const { authenticate, requirePermission, requireCompanyScope } = require('../mid
 const ctrl = require('../controllers/expenseController');
 
 const canApprove = (req, res, next) => {
-  if (req.user.role === 'admin' || req.user.permissions?.includes('can_approve_expenses')) {
+  if (req.user.role === 'admin' || req.user.permissions?.includes('approve_expense_requests')) {
     return next();
   }
   return res.status(403).json({ error: 'Approval permission required' });

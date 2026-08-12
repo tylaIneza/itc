@@ -27,7 +27,7 @@ interface CartItem {
 
 export default function SalesPage() {
   const { hasPermission, isAdmin } = useAuth();
-  const canSell = hasPermission('can_sell') && !isAdmin;
+  const canSell = hasPermission('create_sale') && !isAdmin;
 
   const [products,   setProducts]   = useState<Product[]>([]);
   const [sales,      setSales]      = useState<Sale[]>([]);

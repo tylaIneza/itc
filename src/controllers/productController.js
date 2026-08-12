@@ -36,7 +36,10 @@ exports.getAll = async (req, res) => {
       total    = Number(countRows[0].total);
     } else {
       [products, total] = await Promise.all([
-        prisma.product.findMany({ where, orderBy: { name: 'asc' }, skip, take }),
+        prisma.product.findMany({
+          where, orderBy: { name: 'asc' }, skip, take,
+          include: { category: { select: { id: true, name: true } } },
+        }),
         prisma.product.count({ where }),
       ]);
     }
@@ -52,6 +55,7 @@ exports.getOne = async (req, res) => {
   try {
     const product = await prisma.product.findUnique({
       where: { id: parseInt(req.params.id) },
+      include: { category: { select: { id: true, name: true } } },
     });
     if (!product) return res.status(404).json({ error: 'Product not found' });
 
@@ -76,7 +80,7 @@ exports.getOne = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { name, sku, barcode, quantity = 0, wholesale_price = 0, low_stock_threshold = 5, unit, description } = req.body;
+  const { name, sku, barcode, category_id, quantity = 0, wholesale_price = 0, selling_price = 0, low_stock_threshold = 5, unit, description } = req.body;
   if (!name) return res.status(400).json({ error: 'Product name is required' });
 
   const branchId = req.user.effective_branch_id;
@@ -88,8 +92,10 @@ exports.create = async (req, res) => {
         name,
         sku:                 sku       || null,
         barcode:             barcode   || null,
+        category_id:         category_id ? parseInt(category_id) : null,
         quantity:            parseInt(quantity),
         wholesale_price:     parseFloat(wholesale_price) || 0,
+        selling_price:       parseFloat(selling_price) || 0,
         low_stock_threshold: parseInt(low_stock_threshold),
         unit:                unit      || 'piece',
         description:         description || null,
@@ -127,7 +133,7 @@ exports.create = async (req, res) => {
 };
 
 exports.update = async (req, res) => {
-  const { name, sku, barcode, wholesale_price, low_stock_threshold, unit, description, is_active } = req.body;
+  const { name, sku, barcode, category_id, wholesale_price, selling_price, low_stock_threshold, unit, description, is_active } = req.body;
   const id = parseInt(req.params.id);
 
   try {
@@ -140,7 +146,9 @@ exports.update = async (req, res) => {
         name:                name                !== undefined ? name                : old.name,
         sku:                 sku                 !== undefined ? sku                 : old.sku,
         barcode:             barcode             !== undefined ? barcode             : old.barcode,
+        category_id:         category_id         !== undefined ? (category_id ? parseInt(category_id) : null) : old.category_id,
         wholesale_price:     wholesale_price     !== undefined ? parseFloat(wholesale_price) : old.wholesale_price,
+        selling_price:       selling_price       !== undefined ? parseFloat(selling_price) : old.selling_price,
         low_stock_threshold: low_stock_threshold !== undefined ? parseInt(low_stock_threshold) : old.low_stock_threshold,
         unit:                unit                || old.unit,
         description:         description         !== undefined ? description         : old.description,
@@ -296,6 +304,18 @@ exports.getLowStock = async (req, res) => {
     `SELECT * FROM products WHERE quantity>0 AND quantity<=low_stock_threshold AND is_active=1 ${branchClause} ORDER BY (quantity/low_stock_threshold) ASC`
   );
   res.json({ products });
+};
+
+exports.getCategories = async (req, res) => {
+  try {
+    const categories = await prisma.category.findMany({
+      where: { is_active: true },
+      orderBy: { name: 'asc' },
+    });
+    res.json({ categories });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
 };
 
 exports.remove = async (req, res) => {
