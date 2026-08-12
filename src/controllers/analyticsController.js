@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const { buildReport } = require('../lib/reportQuery');
 
 // Returns safe SQL fragment for branch filtering on a given alias (or no alias).
 const bSql = (branchId, alias) => {
@@ -13,7 +14,7 @@ exports.getDashboard = async (req, res) => {
     const bs  = bSql(bid, 's');   // sales alias
     const be  = bSql(bid, 'e');   // expenses aliased as 'e' (only for expense_breakdown join)
     const bu  = bSql(bid, 'u');   // users alias (branch of user)
-    const bRaw= bSql(bid, null);  // no alias (savings, capital, direct expense queries)
+    const bRaw= bSql(bid, null);  // no alias (capital, direct expense queries)
 
     const [
       todaySales, todayExpenses,
@@ -24,11 +25,11 @@ exports.getDashboard = async (req, res) => {
       stockStats, recentSales, sellerBreakdown, userAnalytics,
     ] = await Promise.all([
       prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(total_amount),0) as revenue, COUNT(*) as transactions FROM sales WHERE DATE(created_at) = CURDATE() ${bRaw}`),
-      prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(amount),0) as total FROM expenses WHERE expense_date = CURDATE() AND from_savings = FALSE ${bRaw}`),
+      prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(amount),0) as total FROM expenses WHERE expense_date = CURDATE() ${bRaw}`),
       prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(total_amount),0) as revenue, COUNT(*) as transactions FROM sales WHERE DATE(created_at) >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) ${bRaw}`),
-      prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(amount),0) as total FROM expenses WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) AND from_savings = FALSE ${bRaw}`),
+      prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(amount),0) as total FROM expenses WHERE expense_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) ${bRaw}`),
       prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(total_amount),0) as revenue, COUNT(*) as transactions FROM sales WHERE DATE(created_at) >= DATE_FORMAT(CURDATE(),'%Y-%m-01') ${bRaw}`),
-      prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(amount),0) as total FROM expenses WHERE expense_date >= DATE_FORMAT(CURDATE(),'%Y-%m-01') AND from_savings = FALSE ${bRaw}`),
+      prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(amount),0) as total FROM expenses WHERE expense_date >= DATE_FORMAT(CURDATE(),'%Y-%m-01') ${bRaw}`),
 
       prisma.$queryRawUnsafe(`
         SELECT si.product_name, SUM(si.quantity) as qty_sold, SUM(si.line_total) as revenue
@@ -95,33 +96,27 @@ exports.getDashboard = async (req, res) => {
         GROUP BY u.id, u.name ORDER BY monthly_revenue DESC`),
     ]);
 
-    const [allTimeRevenue, allTimeExpenses, allTimeCapital, allTimeSavings, todaySavingRow, monthlySavingRow] = await Promise.all([
+    const [allTimeRevenue, allTimeExpenses, allTimeCapital] = await Promise.all([
       prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(total_amount),0) as revenue, COUNT(*) as transactions FROM sales WHERE 1=1 ${bRaw}`),
-      prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(amount),0) as total FROM expenses WHERE from_savings=FALSE ${bRaw}`),
+      prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(amount),0) as total FROM expenses WHERE 1=1 ${bRaw}`),
       prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(amount),0) as total FROM capital_injections WHERE 1=1 ${bSql(bid,'')}`),
-      prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(amount),0) as total FROM savings WHERE 1=1 ${bRaw}`),
-      prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(amount),0) as total FROM savings WHERE date=CURDATE() ${bRaw}`),
-      prisma.$queryRawUnsafe(`SELECT COALESCE(SUM(amount),0) as total FROM savings WHERE DATE_FORMAT(date,'%Y-%m')=DATE_FORMAT(CURDATE(),'%Y-%m') ${bRaw}`),
     ]);
 
     const todayRevenue   = parseFloat(todaySales[0].revenue);
     const todayExpense   = parseFloat(todayExpenses[0].total);
-    const todaySaving    = parseFloat(todaySavingRow[0].total);
     const weeklyRevenue  = parseFloat(weeklySales[0].revenue);
     const weeklyExpense  = parseFloat(weeklyExpenses[0].total);
     const monthlyRevenue = parseFloat(monthlySales[0].revenue);
     const monthlyExpense = parseFloat(monthlyExpenses[0].total);
-    const monthlySaving  = parseFloat(monthlySavingRow[0].total);
     const allTimeRev     = parseFloat(allTimeRevenue[0].revenue);
     const allTimeExp     = parseFloat(allTimeExpenses[0].total);
     const allTimeCap     = parseFloat(allTimeCapital[0].total);
-    const allTimeSaved   = parseFloat(allTimeSavings[0].total);
 
     res.json({
-      today:    { revenue: todayRevenue,   expenses: todayExpense,   saving: todaySaving,   net_profit: todayRevenue   - todayExpense   - todaySaving,   transactions: todaySales[0].transactions   },
-      weekly:   { revenue: weeklyRevenue,  expenses: weeklyExpense,  net_profit: weeklyRevenue  - weeklyExpense,                                         transactions: weeklySales[0].transactions  },
-      monthly:  { revenue: monthlyRevenue, expenses: monthlyExpense, saving: monthlySaving,  net_profit: monthlyRevenue - monthlyExpense - monthlySaving, transactions: monthlySales[0].transactions },
-      all_time: { revenue: allTimeRev, expenses: allTimeExp, capital: allTimeCap, savings: allTimeSaved, net_profit: allTimeRev + allTimeCap - allTimeExp - allTimeSaved, transactions: allTimeRevenue[0].transactions },
+      today:    { revenue: todayRevenue,   expenses: todayExpense,   net_profit: todayRevenue   - todayExpense,   transactions: todaySales[0].transactions   },
+      weekly:   { revenue: weeklyRevenue,  expenses: weeklyExpense,  net_profit: weeklyRevenue  - weeklyExpense,   transactions: weeklySales[0].transactions  },
+      monthly:  { revenue: monthlyRevenue, expenses: monthlyExpense, net_profit: monthlyRevenue - monthlyExpense,  transactions: monthlySales[0].transactions },
+      all_time: { revenue: allTimeRev, expenses: allTimeExp, capital: allTimeCap, net_profit: allTimeRev + allTimeCap - allTimeExp, transactions: allTimeRevenue[0].transactions },
       top_products:       topProducts,
       seller_performance: sellerPerformance,
       seller_breakdown:   sellerBreakdown,
@@ -141,90 +136,14 @@ exports.getReport = async (req, res) => {
   try {
     const { period = 'daily', start_date, end_date, seller_id } = req.query;
     const bid = req.user.effective_branch_id;
-    const bs  = bSql(bid, 's');
-    const be  = bSql(bid, null); // expenses has no alias in these queries
-
-    let startDate, endDate;
-    if (start_date && end_date) {
-      startDate = start_date;
-      endDate   = end_date;
-    } else {
-      const [dates] = await prisma.$queryRaw`
-        SELECT DATE_FORMAT(CURDATE(),'%Y-%m-%d') as today,
-               DATE_FORMAT(DATE_SUB(CURDATE(),INTERVAL 7 DAY),'%Y-%m-%d') as week_start,
-               DATE_FORMAT(DATE_SUB(CURDATE(),INTERVAL DAY(CURDATE())-1 DAY),'%Y-%m-%d') as month_start`;
-      if (period === 'daily')       { startDate = endDate = dates.today; }
-      else if (period === 'weekly') { startDate = dates.week_start; endDate = dates.today; }
-      else                          { startDate = dates.month_start; endDate = dates.today; }
-    }
-
     const sellerClause = seller_id ? `AND s.seller_id = ${parseInt(seller_id)}` : '';
-    const reportYear   = parseInt(startDate.slice(0, 4));
-    const bSavings     = bSql(bid, null);
 
-    const [salesSummary, expensesSummary, savingsSummary, dailyTrend, topProducts, sellerPerformance, monthlySavings] = await Promise.all([
-      prisma.$queryRawUnsafe(
-        `SELECT COALESCE(SUM(s.total_amount),0) as revenue, COUNT(DISTINCT s.id) as transactions
-         FROM sales s WHERE DATE(s.created_at) BETWEEN ? AND ? ${sellerClause} ${bs}`,
-        startDate, endDate),
-
-      prisma.$queryRawUnsafe(
-        `SELECT COALESCE(SUM(amount),0) as total_expenses FROM expenses WHERE expense_date BETWEEN ? AND ? AND from_savings=FALSE ${be}`,
-        startDate, endDate),
-
-      prisma.$queryRawUnsafe(
-        `SELECT COALESCE(SUM(amount),0) as total_savings FROM savings WHERE date BETWEEN ? AND ? ${bSavings}`,
-        startDate, endDate),
-
-      prisma.$queryRawUnsafe(
-        `SELECT DATE(s.created_at) as date, COALESCE(SUM(s.total_amount),0) as revenue, COUNT(*) as transactions
-         FROM sales s WHERE DATE(s.created_at) BETWEEN ? AND ? ${sellerClause} ${bs}
-         GROUP BY DATE(s.created_at) ORDER BY date`,
-        startDate, endDate),
-
-      prisma.$queryRawUnsafe(
-        `SELECT si.product_name, SUM(si.quantity) as qty_sold, SUM(si.line_total) as revenue
-         FROM sale_items si JOIN sales s ON si.sale_id = s.id
-         WHERE DATE(s.created_at) BETWEEN ? AND ? ${sellerClause} ${bs}
-         GROUP BY si.product_id, si.product_name ORDER BY qty_sold DESC LIMIT 10`,
-        startDate, endDate),
-
-      prisma.$queryRawUnsafe(
-        `SELECT u.name as seller_name, COUNT(s.id) as transactions, SUM(s.total_amount) as revenue
-         FROM sales s JOIN users u ON s.seller_id = u.id
-         WHERE DATE(s.created_at) BETWEEN ? AND ? ${sellerClause} ${bs}
-         GROUP BY s.seller_id, u.name ORDER BY revenue DESC`,
-        startDate, endDate),
-
-      prisma.$queryRawUnsafe(
-        `SELECT MONTH(date) as month, COALESCE(SUM(amount),0) as total_saved,
-                COUNT(CASE WHEN amount > 0 THEN 1 END) as days_saved
-         FROM savings WHERE YEAR(date) = ? ${bSavings} GROUP BY MONTH(date) ORDER BY month ASC`,
-        reportYear),
-    ]);
-
-    const revenue  = parseFloat(salesSummary[0].revenue);
-    const expenses = parseFloat(expensesSummary[0].total_expenses);
-    const savings  = parseFloat(savingsSummary[0].total_savings);
-    const netProfit = revenue - expenses - savings;
-
-    res.json({
-      period, start_date: startDate, end_date: endDate,
-      summary: {
-        revenue, expenses, savings,
-        net_profit:   netProfit,
-        transactions: Number(salesSummary[0].transactions),
-        profit_margin: revenue > 0 ? (((netProfit) / revenue) * 100).toFixed(2) : '0.00',
-      },
-      daily_trend:        dailyTrend,
-      top_products:       topProducts,
-      seller_performance: sellerPerformance,
-      monthly_savings:    monthlySavings.map(m => ({
-        month:       Number(m.month),
-        total_saved: parseFloat(m.total_saved),
-        days_saved:  Number(m.days_saved),
-      })),
+    const report = await buildReport({
+      branchClause: (alias) => bSql(bid, alias),
+      sellerClause, period, start_date, end_date,
     });
+
+    res.json(report);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

@@ -2,13 +2,24 @@ export interface User {
   id: number;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'seller';
+  role: 'superadmin' | 'admin' | 'manager' | 'seller';
+  company_id: number | null;
   permissions: string[];
   avatar_url?: string;
   phone?: string;
   is_active?: boolean;
   last_login?: string;
   created_at?: string;
+}
+
+export interface Company {
+  id: number;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  created_at: string;
+  user_count: number;
+  branch: string | null;
 }
 
 export interface Product {
@@ -87,13 +98,14 @@ export interface AuditLog {
   description?: string;
   ip_address?: string;
   created_at: string;
+  company_name?: string;
 }
 
 export interface DashboardData {
-  today: { revenue: number; expenses: number; saving: number; net_profit: number; transactions: number };
+  today: { revenue: number; expenses: number; net_profit: number; transactions: number };
   weekly: { revenue: number; expenses: number; net_profit: number; transactions: number };
-  monthly: { revenue: number; expenses: number; saving: number; net_profit: number; transactions: number };
-  all_time: { revenue: number; expenses: number; capital: number; savings: number; net_profit: number; transactions: number };
+  monthly: { revenue: number; expenses: number; net_profit: number; transactions: number };
+  all_time: { revenue: number; expenses: number; capital: number; net_profit: number; transactions: number };
   top_products: Array<{ product_name: string; qty_sold: number; revenue: number }>;
   seller_performance: Array<{ seller_name: string; transactions: number; revenue: number }>;
   seller_breakdown: Array<{ seller_id: number; seller_name: string; transactions: number; revenue: number; expenses: number; expense_count: number }>;
@@ -117,7 +129,6 @@ export interface ReportData {
   summary: {
     revenue: number;
     expenses: number;
-    savings: number;
     net_profit: number;
     transactions: number;
     profit_margin: string;
@@ -125,7 +136,18 @@ export interface ReportData {
   daily_trend: Array<{ date: string; revenue: number; transactions: number }>;
   top_products: Array<{ product_name: string; qty_sold: number; revenue: number }>;
   seller_performance: Array<{ seller_name: string; transactions: number; revenue: number }>;
-  monthly_savings: Array<{ month: number; total_saved: number; days_saved: number }>;
+}
+
+export interface CompanyDashboardData extends ReportData {
+  company: {
+    id: number;
+    name: string;
+    slug: string;
+    is_active: boolean;
+    user_count: number;
+    branches: Array<{ id: number; name: string }>;
+  };
+  stock_stats: { total_products: number; total_items: number; low_stock_count: number };
 }
 
 export interface PaginatedResponse<T> {

@@ -8,9 +8,10 @@ async function main() {
   console.log('🌱 Seeding database…');
 
   // ── Roles ──────────────────────────────────────────────────────────────────
-  const admin   = await prisma.role.upsert({ where: { name: 'admin'   }, update: {}, create: { name: 'admin',   description: 'Full system access' } });
-  const seller  = await prisma.role.upsert({ where: { name: 'seller'  }, update: {}, create: { name: 'seller',  description: 'Sales and limited access' } });
-  const manager = await prisma.role.upsert({ where: { name: 'manager' }, update: {}, create: { name: 'manager', description: 'Approve expenses, manage stock, view reports' } });
+  const admin      = await prisma.role.upsert({ where: { name: 'admin'      }, update: {}, create: { name: 'admin',      description: 'Full system access' } });
+  const seller     = await prisma.role.upsert({ where: { name: 'seller'     }, update: {}, create: { name: 'seller',     description: 'Sales and limited access' } });
+  const manager    = await prisma.role.upsert({ where: { name: 'manager'    }, update: {}, create: { name: 'manager',    description: 'Approve expenses, manage stock, view reports' } });
+  await prisma.role.upsert({ where: { name: 'superadmin' }, update: {}, create: { name: 'superadmin', description: 'Platform owner — manages company accounts, no access to any company\'s business data' } });
   console.log('  ✓ Roles');
 
   // ── Permissions ────────────────────────────────────────────────────────────
@@ -89,7 +90,7 @@ async function main() {
   for (const u of adminUsers) {
     const exists = await prisma.user.findUnique({ where: { email: u.email } });
     if (!exists) {
-      await prisma.user.create({ data: { ...u, role_id: admin.id } });
+      await prisma.user.create({ data: { ...u, role_id: admin.id, company_id: 1, branch_id: 1 } });
       console.log(`  ✓ Admin created: ${u.email}`);
     } else {
       console.log(`  – Already exists, skipped: ${u.email}`);

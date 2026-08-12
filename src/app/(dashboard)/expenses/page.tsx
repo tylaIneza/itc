@@ -26,7 +26,6 @@ const emptyForm = {
   title: '', amount: '', category_id: '',
   expense_date: '',
   description: '',
-  from_savings: false,
 };
 
 function ExpensesContent() {
@@ -118,7 +117,6 @@ function ExpensesContent() {
     setForm({
       title: e.title, amount: String(e.amount), category_id: String(e.category_id),
       expense_date: e.expense_date.split('T')[0], description: e.description || '',
-      from_savings: false,
     });
     setModal('edit');
   };
@@ -542,31 +540,6 @@ function ExpensesContent() {
               onChange={e => setForm({ ...form, description: e.target.value })}
               className="input h-20 resize-none" placeholder="Optional notes" />
           </div>
-
-          {/* Charge to Savings — available to all roles when adding */}
-          {modal === 'add' && (
-            <div
-              onClick={() => setForm({ ...form, from_savings: !form.from_savings })}
-              className={`flex items-center justify-between p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                form.from_savings
-                  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-              }`}>
-              <div>
-                <p className={`text-sm font-bold ${form.from_savings ? 'text-emerald-700 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>
-                  💰 Charge to Savings
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {form.from_savings
-                    ? 'This expense will be deducted from savings — NOT from business money'
-                    : 'Enable to pay this expense from the savings pot'}
-                </p>
-              </div>
-              <div className={`w-11 h-6 rounded-full transition-colors flex-shrink-0 ${form.from_savings ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                <span className={`block w-5 h-5 bg-white rounded-full shadow mt-0.5 transition-transform duration-200 ${form.from_savings ? 'translate-x-5' : 'translate-x-0.5'}`} />
-              </div>
-            </div>
-          )}
         </div>
       </Modal>
 

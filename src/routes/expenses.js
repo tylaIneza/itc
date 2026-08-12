@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { authenticate, requirePermission } = require('../middleware/auth');
+const { authenticate, requirePermission, requireCompanyScope } = require('../middleware/auth');
 const ctrl = require('../controllers/expenseController');
 
 const canApprove = (req, res, next) => {
@@ -16,7 +16,7 @@ const notAdmin = (req, res, next) => {
   next();
 };
 
-router.use(authenticate);
+router.use(authenticate, requireCompanyScope);
 
 // Categories (all authenticated users need this for forms)
 router.get('/categories', ctrl.getCategories);

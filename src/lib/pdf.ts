@@ -3,11 +3,6 @@ import autoTable from 'jspdf-autotable';
 import { formatCurrency, formatDate } from './utils';
 import type { ReportData } from '@/types';
 
-const MONTH_NAMES = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-];
-
 export function exportReportPDF(report: ReportData): void {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -36,7 +31,6 @@ export function exportReportPDF(report: ReportData): void {
     body: [
       ['Revenue',         formatCurrency(s.revenue)],
       ['Operating Expenses', formatCurrency(s.expenses)],
-      ['Savings',         formatCurrency(s.savings ?? 0)],
       ['Net Profit',      formatCurrency(s.net_profit)],
       ['Profit Margin',   `${s.profit_margin}%`],
       ['Transactions',    s.transactions.toString()],
@@ -46,41 +40,6 @@ export function exportReportPDF(report: ReportData): void {
     styles: { fontSize: 10 },
     columnStyles: { 1: { halign: 'right' } },
   });
-
-  // Monthly Savings Breakdown
-  if (report.monthly_savings && report.monthly_savings.length > 0) {
-    const year = report.start_date.slice(0, 4);
-    const yearTotal = report.monthly_savings.reduce((sum, m) => sum + m.total_saved, 0);
-
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 12,
-      head: [['Month', 'Days Saved', 'Total Saved']],
-      body: [
-        ...report.monthly_savings.map(m => [
-          MONTH_NAMES[m.month - 1],
-          m.days_saved.toString(),
-          formatCurrency(m.total_saved),
-        ]),
-        ['TOTAL', report.monthly_savings.reduce((s, m) => s + m.days_saved, 0).toString(), formatCurrency(yearTotal)],
-      ],
-      theme: 'striped',
-      headStyles: { fillColor: [16, 185, 129] },
-      styles: { fontSize: 10 },
-      columnStyles: { 2: { halign: 'right' } },
-      didParseCell: (data: any) => {
-        if (data.row.index === report.monthly_savings.length) {
-          data.cell.styles.fontStyle = 'bold';
-        }
-      },
-      didDrawPage: (data: any) => {
-        if (data.pageNumber === 1) {
-          doc.setFontSize(12);
-          doc.setTextColor(50, 50, 50);
-          doc.text(`Monthly Savings — ${year}`, 14, (doc as any).lastAutoTable.finalY + 8);
-        }
-      },
-    });
-  }
 
   // Top Products table
   if (report.top_products.length) {

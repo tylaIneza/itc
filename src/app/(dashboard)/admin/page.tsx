@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { analyticsApi, capitalApi, savingsApi } from '@/lib/api';
+import { analyticsApi, capitalApi } from '@/lib/api';
 import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { useSocket } from '@/hooks/useSocket';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,7 +11,7 @@ import Modal from '@/components/ui/Modal';
 import toast from 'react-hot-toast';
 import {
   DollarSign, ShoppingCart, TrendingUp, TrendingDown, Package,
-  Users, AlertTriangle, Activity, ArrowRight, RefreshCw, Zap, Wallet, Plus, Trash2, PiggyBank,
+  Users, AlertTriangle, Activity, ArrowRight, RefreshCw, Zap, Wallet, Plus, Trash2,
 } from 'lucide-react';
 
 import {
@@ -21,9 +21,8 @@ import {
 import Link from 'next/link';
 
 export default function AdminDashboard() {
-  const { user: currentUser, hasPermission } = useAuth();
+  const { user: currentUser } = useAuth();
   const isStrictAdmin  = currentUser?.role === 'admin';
-  const canSeeSavings  = isStrictAdmin || hasPermission('can_view_savings');
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -35,21 +34,6 @@ export default function AdminDashboard() {
     id: number; invoice_number: string; total_amount: number;
     seller_name: string; items_count: number; created_at: string;
   }>>([]);
-  const [savingsStats, setSavingsStats] = useState<{
-    revenue_today: number; daily_saving_target: number; saving_today: number;
-    projected_saving: number; remaining_revenue: number; saving_recorded: boolean;
-    total_savings_month: number; days_saved_month: number;
-    total_savings_year: number; days_saved_year: number;
-    total_spent_from_savings: number; savings_balance: number;
-  } | null>(null);
-
-  const fetchSavingsStats = useCallback(async () => {
-    try {
-      const r = await savingsApi.getDashboardStats();
-      setSavingsStats(r.data);
-    } catch {}
-  }, []);
-
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     else setRefreshing(true);
@@ -65,10 +49,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     fetchData();
-    fetchSavingsStats();
-    const interval = setInterval(() => { fetchData(true); fetchSavingsStats(); }, 60000);
+    const interval = setInterval(() => { fetchData(true); }, 60000);
     return () => clearInterval(interval);
-  }, [fetchData, fetchSavingsStats]);
+  }, [fetchData]);
 
   const loadCapital = useCallback(async () => {
     try { const r = await capitalApi.getAll(); setCapitalList(r.data.injections); } catch {}
@@ -185,12 +168,6 @@ export default function AdminDashboard() {
                   <p className="text-xs text-white/70 uppercase tracking-wide">Expenses</p>
                   <p className="text-lg font-bold text-white/90 tabular-nums">{formatCurrency(data.all_time.expenses)}</p>
                 </div>
-                {data.all_time.savings > 0 && (
-                  <div>
-                    <p className="text-xs text-white/70 uppercase tracking-wide">Savings Set Aside</p>
-                    <p className="text-lg font-bold text-amber-200 tabular-nums">-{formatCurrency(data.all_time.savings)}</p>
-                  </div>
-                )}
               </div>
               {isStrictAdmin && (
                 <button onClick={() => setCapitalModal(true)}
@@ -198,63 +175,6 @@ export default function AdminDashboard() {
                   <Plus className="w-4 h-4" /> Add Capital
                 </button>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Daily Savings Section */}
-      {canSeeSavings && savingsStats && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-              <PiggyBank className="w-3.5 h-3.5 text-emerald-500" /> Daily Savings
-            </h2>
-            <Link href="/savings" className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-1">
-              View All <ArrowRight className="w-3 h-3" />
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-            <StatCard title="Revenue Today" value={savingsStats.revenue_today} isCurrency
-              icon={DollarSign} iconColor="text-blue-700" iconBg="bg-blue-100 dark:bg-blue-900/30" />
-            <StatCard title="Daily Saving" value={savingsStats.projected_saving} isCurrency
-              icon={PiggyBank} iconColor="text-emerald-600" iconBg="bg-emerald-100 dark:bg-emerald-900/30"
-              subtitle={savingsStats.saving_recorded ? 'Recorded ✓' : 'Pending'} />
-            <div className={`stat-card ${savingsStats.remaining_revenue < 0 ? 'border border-red-200 dark:border-red-800' : ''}`}>
-              <div className="flex items-start justify-between">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${savingsStats.remaining_revenue < 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-blue-100 dark:bg-blue-900/30'}`}>
-                  <TrendingUp className={`w-5 h-5 ${savingsStats.remaining_revenue < 0 ? 'text-red-600' : 'text-blue-600'}`} />
-                </div>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Remaining Revenue</p>
-                <p className={`text-2xl font-bold mt-0.5 tabular-nums ${savingsStats.remaining_revenue < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}>
-                  {savingsStats.remaining_revenue < 0 ? '-' : ''}{formatCurrency(Math.abs(savingsStats.remaining_revenue))}
-                </p>
-                {savingsStats.remaining_revenue < 0 && (
-                  <p className="text-xs text-red-500 mt-1 font-medium">⚠ Deficit — below saving target</p>
-                )}
-              </div>
-            </div>
-            <StatCard title="Savings This Month" value={savingsStats.total_savings_month} isCurrency
-              icon={Activity} iconColor="text-violet-600" iconBg="bg-violet-100 dark:bg-violet-900/30"
-              subtitle={`${savingsStats.days_saved_month} days saved`} />
-            <StatCard title="Savings This Year" value={savingsStats.total_savings_year} isCurrency
-              icon={Zap} iconColor="text-amber-600" iconBg="bg-amber-100 dark:bg-amber-900/30"
-              subtitle={`${savingsStats.days_saved_year} days saved`} />
-            <div className={`stat-card ${savingsStats.savings_balance < 0 ? 'border border-red-200 dark:border-red-800' : 'border border-emerald-200 dark:border-emerald-800'}`}>
-              <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${savingsStats.savings_balance < 0 ? 'bg-red-100 dark:bg-red-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'}`}>
-                <PiggyBank className={`w-5 h-5 ${savingsStats.savings_balance < 0 ? 'text-red-600' : 'text-emerald-600'}`} />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Savings Balance</p>
-                <p className={`text-2xl font-bold mt-0.5 tabular-nums ${savingsStats.savings_balance < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                  {savingsStats.savings_balance < 0 ? '-' : ''}{formatCurrency(Math.abs(savingsStats.savings_balance))}
-                </p>
-                {savingsStats.total_spent_from_savings > 0 && (
-                  <p className="text-xs text-gray-400 mt-1">{formatCurrency(savingsStats.total_spent_from_savings)} spent</p>
-                )}
-              </div>
             </div>
           </div>
         </div>

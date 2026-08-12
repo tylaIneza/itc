@@ -26,15 +26,18 @@ exports.login = async (req, res) => {
           ? { phone: loginId }
           : { email: loginId.toLowerCase() }),
       },
-      include: { role: true },
+      include: { role: true, company: true },
     });
 
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+    if (user.company_id && !user.company?.is_active) {
+      return res.status(403).json({ error: 'This company account has been suspended' });
+    }
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
       await auditLog({
-        userId: user.id, userName: user.name, action: 'LOGIN_FAILED',
+        userId: user.id, userName: user.name, branchId: user.branch_id, action: 'LOGIN_FAILED',
         module: 'AUTH', description: 'Failed login attempt',
         ipAddress: req.ip, userAgent: req.headers['user-agent'],
       });
@@ -54,7 +57,7 @@ exports.login = async (req, res) => {
     });
 
     await auditLog({
-      userId: user.id, userName: user.name, action: 'LOGIN',
+      userId: user.id, userName: user.name, branchId: user.branch_id, action: 'LOGIN',
       module: 'AUTH', description: 'User logged in',
       ipAddress: req.ip, userAgent: req.headers['user-agent'],
     });
@@ -67,7 +70,8 @@ exports.login = async (req, res) => {
         name:        user.name,
         email:       user.email,
         role:        user.role.name,
-        branch_id:   user.branch_id,   // null = super-admin
+        company_id:  user.company_id,  // null = superadmin (no company)
+        branch_id:   user.branch_id,
         permissions: permissions.map(p => p.name),
         avatar_url:  user.avatar_url,
         last_login:  user.last_login,
@@ -81,7 +85,7 @@ exports.login = async (req, res) => {
 
 exports.logout = async (req, res) => {
   await auditLog({
-    userId: req.user.id, userName: req.user.name, action: 'LOGOUT',
+    userId: req.user.id, userName: req.user.name, branchId: req.user.branch_id, action: 'LOGOUT',
     module: 'AUTH', description: 'User logged out',
     ipAddress: req.ip, userAgent: req.headers['user-agent'],
   });
@@ -100,6 +104,7 @@ exports.me = async (req, res) => {
         name:        user.name,
         email:       user.email,
         phone:       user.phone,
+        company_id:  user.company_id,
         branch_id:   user.branch_id,
         avatar_url:  user.avatar_url,
         last_login:  user.last_login,

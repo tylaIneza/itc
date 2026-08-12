@@ -101,7 +101,7 @@ exports.getOne = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  const { title, amount, category_id, expense_date, description, from_savings = false } = req.body;
+  const { title, amount, category_id, expense_date, description } = req.body;
   if (!title || !amount || !category_id || !expense_date)
     return res.status(400).json({ error: 'Title, amount, category, and date are required' });
 
@@ -109,8 +109,6 @@ exports.create = async (req, res) => {
   if (branchId === null) {
     return res.status(400).json({ error: 'Select a branch before recording an expense' });
   }
-
-  const chargeSavings = !!from_savings;
 
   try {
     const expense = await prisma.expense.create({
@@ -121,15 +119,14 @@ exports.create = async (req, res) => {
         branch_id:    branchId,
         expense_date: new Date(expense_date),
         description:  description || null,
-        from_savings: chargeSavings,
         created_by:   req.user.id,
       },
     });
     await auditLog({
       userId: req.user.id, userName: req.user.name, branchId,
       action: 'CREATE_EXPENSE', module: 'EXPENSES', entityType: 'expense', entityId: expense.id,
-      description: `Expense created: ${title} — ${amount}${chargeSavings ? ' [from savings]' : ''}`,
-      newValues: { title, amount, category_id, expense_date, from_savings: chargeSavings },
+      description: `Expense created: ${title} — ${amount}`,
+      newValues: { title, amount, category_id, expense_date },
     });
     res.status(201).json({ message: 'Expense recorded', id: expense.id });
   } catch (err) {

@@ -8,17 +8,12 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import StatCard from '@/components/ui/StatCard';
 import toast from 'react-hot-toast';
 import {
-  DollarSign, TrendingUp, TrendingDown, ShoppingCart, Download, BarChart3, Users, PiggyBank,
+  DollarSign, TrendingUp, TrendingDown, ShoppingCart, Download, BarChart3, Users,
 } from 'lucide-react';
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, Legend,
 } from 'recharts';
-
-const MONTH_NAMES = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
-];
 
 type Period = 'daily' | 'weekly' | 'monthly';
 
@@ -118,13 +113,11 @@ export default function AnalyticsPage() {
           )}
 
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <StatCard title="Total Revenue" value={report.summary.revenue} isCurrency
               icon={DollarSign} iconColor="text-blue-700" />
             <StatCard title="Total Expenses" value={report.summary.expenses} isCurrency
               icon={TrendingDown} iconColor="text-red-600" iconBg="bg-red-100 dark:bg-red-900/30" />
-            <StatCard title="Total Savings" value={report.summary.savings} isCurrency
-              icon={PiggyBank} iconColor="text-emerald-600" iconBg="bg-emerald-100 dark:bg-emerald-900/30" />
             <div className="stat-card">
               <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${report.summary.net_profit >= 0 ? 'bg-violet-100 dark:bg-violet-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
                 <TrendingUp className={`w-5 h-5 ${report.summary.net_profit >= 0 ? 'text-violet-600' : 'text-red-600'}`} />
@@ -142,11 +135,10 @@ export default function AnalyticsPage() {
           {/* Financial Summary */}
           <div className="card p-5">
             <h3 className="section-title mb-4">Financial Summary</h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
               {[
                 { label: 'Revenue', value: report.summary.revenue, color: 'text-blue-700' },
                 { label: 'Operating Expenses', value: report.summary.expenses, color: 'text-red-600' },
-                { label: 'Savings', value: report.summary.savings, color: 'text-emerald-600' },
                 { label: 'Net Profit', value: report.summary.net_profit, color: report.summary.net_profit >= 0 ? 'text-violet-600' : 'text-red-600' },
               ].map(item => (
                 <div key={item.label} className="p-4 rounded-xl bg-gray-50 dark:bg-gray-800">
@@ -156,35 +148,6 @@ export default function AnalyticsPage() {
               ))}
             </div>
           </div>
-
-          {/* Monthly Savings Breakdown */}
-          {report.monthly_savings && report.monthly_savings.length > 0 && (
-            <div className="card p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <PiggyBank className="w-5 h-5 text-emerald-500" />
-                <h3 className="section-title">Monthly Savings Breakdown — {report.start_date.slice(0, 4)}</h3>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {report.monthly_savings.map(m => (
-                  <div key={m.month} className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800">
-                    <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wide">
-                      {MONTH_NAMES[m.month - 1]}
-                    </p>
-                    <p className="text-lg font-extrabold tabular-nums text-gray-900 dark:text-white mt-1">
-                      {formatCurrency(m.total_saved)}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">{m.days_saved} days</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
-                <span className="text-sm text-gray-500 font-medium">Year Total</span>
-                <span className="text-lg font-extrabold text-emerald-600 tabular-nums">
-                  {formatCurrency(report.monthly_savings.reduce((sum, m) => sum + m.total_saved, 0))}
-                </span>
-              </div>
-            </div>
-          )}
 
           {/* Charts */}
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

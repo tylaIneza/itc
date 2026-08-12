@@ -5,6 +5,7 @@ const { auditLog } = require('../middleware/audit');
 exports.getAll = async (req, res) => {
   try {
     const users = await prisma.user.findMany({
+      where: { company_id: req.user.company_id },
       include: { role: true },
       orderBy: { created_at: 'desc' },
     });
@@ -29,7 +30,9 @@ exports.getOne = async (req, res) => {
         user_permissions: { include: { permission: true } },
       },
     });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user || user.company_id !== req.user.company_id) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     const allPermissions = await prisma.permission.findMany({ orderBy: { name: 'asc' } });
     const customIds = new Set(user.user_permissions.map(up => up.permission_id));
@@ -61,9 +64,15 @@ exports.create = async (req, res) => {
     return res.status(400).json({ error: 'Name, email, password, and role are required' });
   }
 
-  const assignedBranchId = 1;
+  const assignedCompanyId = req.user.company_id;
+  const assignedBranchId  = req.user.effective_branch_id;
 
   try {
+    const role = await prisma.role.findUnique({ where: { id: parseInt(role_id) } });
+    if (!role || role.name === 'superadmin') {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
     const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
     if (existing) return res.status(409).json({ error: 'Email already in use' });
 
@@ -74,6 +83,7 @@ exports.create = async (req, res) => {
         email:         email.toLowerCase().trim(),
         password_hash: hash,
         role_id:       parseInt(role_id),
+        company_id:    assignedCompanyId,
         branch_id:     assignedBranchId,
         phone:         phone || null,
         user_permissions: permissions.length
@@ -83,7 +93,7 @@ exports.create = async (req, res) => {
     });
 
     await auditLog({
-      userId: req.user.id, userName: req.user.name, action: 'CREATE_USER',
+      userId: req.user.id, userName: req.user.name, branchId: req.user.effective_branch_id, action: 'CREATE_USER',
       module: 'USERS', entityType: 'user', entityId: user.id,
       description: `Created user: ${name} (${email})`, newValues: { name, email, role_id },
     });
@@ -101,7 +111,16 @@ exports.update = async (req, res) => {
 
   try {
     const old = await prisma.user.findUnique({ where: { id } });
-    if (!old) return res.status(404).json({ error: 'User not found' });
+    if (!old || old.company_id !== req.user.company_id) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (role_id) {
+      const role = await prisma.role.findUnique({ where: { id: parseInt(role_id) } });
+      if (!role || role.name === 'superadmin') {
+        return res.status(400).json({ error: 'Invalid role' });
+      }
+    }
 
     const data = {
       name:      name      || old.name,
@@ -130,7 +149,7 @@ exports.update = async (req, res) => {
     }
 
     await auditLog({
-      userId: req.user.id, userName: req.user.name, action: 'UPDATE_USER',
+      userId: req.user.id, userName: req.user.name, branchId: req.user.effective_branch_id, action: 'UPDATE_USER',
       module: 'USERS', entityType: 'user', entityId: id,
       description: `Updated user ID: ${id}`, oldValues: old, newValues: req.body,
     });
@@ -148,13 +167,15 @@ exports.remove = async (req, res) => {
   }
 
   try {
-    const old = await prisma.user.findUnique({ where: { id }, select: { name: true, email: true } });
-    if (!old) return res.status(404).json({ error: 'User not found' });
+    const old = await prisma.user.findUnique({ where: { id }, select: { name: true, email: true, company_id: true } });
+    if (!old || old.company_id !== req.user.company_id) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     await prisma.user.update({ where: { id }, data: { is_active: false } });
 
     await auditLog({
-      userId: req.user.id, userName: req.user.name, action: 'DEACTIVATE_USER',
+      userId: req.user.id, userName: req.user.name, branchId: req.user.effective_branch_id, action: 'DEACTIVATE_USER',
       module: 'USERS', entityType: 'user', entityId: id,
       description: `Deactivated user: ${old.name}`,
     });
@@ -172,8 +193,10 @@ exports.permanentDelete = async (req, res) => {
   }
 
   try {
-    const user = await prisma.user.findUnique({ where: { id }, select: { name: true, email: true } });
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    const user = await prisma.user.findUnique({ where: { id }, select: { name: true, email: true, company_id: true } });
+    if (!user || user.company_id !== req.user.company_id) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     const [salesCount, expensesCount] = await Promise.all([
       prisma.sale.count({ where: { seller_id: id } }),
@@ -189,7 +212,7 @@ exports.permanentDelete = async (req, res) => {
     await prisma.user.delete({ where: { id } });
 
     await auditLog({
-      userId: req.user.id, userName: req.user.name, action: 'PERMANENT_DELETE_USER',
+      userId: req.user.id, userName: req.user.name, branchId: req.user.effective_branch_id, action: 'PERMANENT_DELETE_USER',
       module: 'USERS', entityType: 'user', entityId: id,
       description: `Permanently deleted user: ${user.name} (${user.email})`,
     });
@@ -203,7 +226,7 @@ exports.permanentDelete = async (req, res) => {
 
 exports.getRoles = async (req, res) => {
   const [roles, permissions] = await Promise.all([
-    prisma.role.findMany({ orderBy: { id: 'asc' } }),
+    prisma.role.findMany({ where: { name: { not: 'superadmin' } }, orderBy: { id: 'asc' } }),
     prisma.permission.findMany({ orderBy: { name: 'asc' } }),
   ]);
   res.json({ roles, permissions });
@@ -212,7 +235,8 @@ exports.getRoles = async (req, res) => {
 exports.getManagers = async (req, res) => {
   const managers = await prisma.user.findMany({
     where: {
-      is_active: true,
+      is_active:  true,
+      company_id: req.user.company_id,
       role: { name: { in: ['admin', 'manager'] } },
     },
     select: { id: true, name: true, email: true },

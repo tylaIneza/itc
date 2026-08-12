@@ -103,12 +103,11 @@ export default function SellerDashboard() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(() => fetchData(true), 60000);
+    const interval = setInterval(() => { fetchData(true); }, 60000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
   useSocket('new_sale', (sale: any) => {
-    // Only flash if it's this seller's sale
     setLiveSales(prev => [sale, ...prev].slice(0, 3));
     setNewSaleFlash(true);
     setTimeout(() => setNewSaleFlash(false), 3000);

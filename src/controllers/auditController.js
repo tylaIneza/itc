@@ -3,7 +3,7 @@ const prisma = require('../lib/prisma');
 exports.getAll = async (req, res) => {
   try {
     const { user_id, module, action, start_date, end_date, page = 1, limit = 50 } = req.query;
-    const where = {};
+    const where = { branch: { company_id: req.user.company_id } };
 
     if (user_id)    where.user_id = parseInt(user_id);
     if (module)     where.module  = module;
@@ -35,6 +35,7 @@ exports.getAll = async (req, res) => {
 
 exports.getModules = async (req, res) => {
   const logs = await prisma.auditLog.findMany({
+    where:   { branch: { company_id: req.user.company_id } },
     select:  { module: true },
     distinct: ['module'],
     orderBy: { module: 'asc' },

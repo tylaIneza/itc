@@ -13,11 +13,14 @@ const authenticate = async (req, res, next) => {
 
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      include: { role: true },
+      include: { role: true, company: true },
     });
 
     if (!user || !user.is_active) {
       return res.status(401).json({ error: 'User not found or inactive' });
+    }
+    if (user.company_id && !user.company?.is_active) {
+      return res.status(403).json({ error: 'This company account has been suspended' });
     }
 
     const permissions = await prisma.permission.findMany({
@@ -37,8 +40,9 @@ const authenticate = async (req, res, next) => {
       role_id:             user.role_id,
       is_active:           user.is_active,
       role:                user.role.name,
-      branch_id:           1,
-      effective_branch_id: 1,
+      company_id:          user.company_id,
+      branch_id:           user.branch_id,
+      effective_branch_id: user.branch_id,
       permissions:         permissions.map(p => p.name),
     };
     next();
@@ -50,6 +54,23 @@ const authenticate = async (req, res, next) => {
 const requireAdmin = (req, res, next) => {
   if (req.user?.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+};
+
+const requireSuperAdmin = (req, res, next) => {
+  if (req.user?.role !== 'superadmin') {
+    return res.status(403).json({ error: 'Superadmin access required' });
+  }
+  next();
+};
+
+// Blocks any request from an account with no company (i.e. superadmin) from
+// reaching business-data routes — defense in depth on top of superadmin
+// simply never being routed here.
+const requireCompanyScope = (req, res, next) => {
+  if (!req.user?.company_id) {
+    return res.status(403).json({ error: 'This account has no access to company data' });
   }
   next();
 };
@@ -82,4 +103,7 @@ const sellerOnly = (req, res, next) => {
   next();
 };
 
-module.exports = { authenticate, requireAdmin, requireAdminOrManager, requirePermission, notAdmin, sellerOnly };
+module.exports = {
+  authenticate, requireAdmin, requireAdminOrManager, requirePermission, notAdmin, sellerOnly,
+  requireSuperAdmin, requireCompanyScope,
+};

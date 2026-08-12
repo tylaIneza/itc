@@ -5,20 +5,19 @@ import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Eye, EyeOff, ShieldCheck, TrendingUp,
-  ShoppingCart, PiggyBank, BarChart3, Package, ArrowRight, Zap,
+  ShoppingCart, DollarSign, BarChart3, Package, ArrowRight, Zap,
 } from 'lucide-react';
 
 const STATS = [
   { icon: TrendingUp,   color: 'from-emerald-500 to-teal-500',   label: 'Revenue Tracked',    value: 'Real-time' },
   { icon: ShoppingCart, color: 'from-blue-600 to-violet-500',  label: 'Sales Managed',      value: 'All in one' },
-  { icon: PiggyBank,    color: 'from-amber-500 to-orange-500',   label: 'Daily Savings',      value: '17,500 RWF/day' },
+  { icon: DollarSign,   color: 'from-amber-500 to-orange-500',   label: 'Expenses',           value: 'Fully tracked' },
   { icon: BarChart3,    color: 'from-pink-500 to-rose-500',      label: 'Analytics',          value: 'Live insights' },
   { icon: Package,      color: 'from-cyan-500 to-blue-500',      label: 'Stock Control',      value: 'Auto alerts' },
 ];
 
 const FEATURES = [
   'Real-time sales tracking',
-  'Daily savings automation',
   'Expense management',
   'Multi-role access control',
   'Live analytics & reports',
@@ -56,7 +55,10 @@ export default function LoginPage() {
     try {
       const user = await login(identifier, password);
       toast.success(`Welcome back, ${user.name}!`, { icon: '👋' });
-      router.replace(user.role === 'seller' ? '/seller' : '/admin');
+      router.replace(
+        user.role === 'superadmin' ? '/superadmin' :
+        user.role === 'seller'     ? '/seller'      : '/admin'
+      );
     } catch (err: any) {
       toast.error(err?.response?.data?.error || 'Invalid credentials');
       setShake(true);
@@ -114,7 +116,7 @@ export default function LoginPage() {
               </span>
             </h2>
             <p className="text-gray-400 text-base mb-10 leading-relaxed max-w-sm">
-              Complete management system for sales, expenses, savings, and analytics — all in one place.
+              Complete management system for sales, expenses, and analytics — all in one place.
             </p>
 
             {/* Dynamic feature ticker */}
@@ -165,8 +167,8 @@ export default function LoginPage() {
           </div>
           <div className="absolute bottom-32 right-16 animate-float2">
             <div className="px-3 py-2 rounded-xl bg-violet-500/10 border border-violet-500/20 backdrop-blur-sm">
-              <p className="text-violet-400 text-xs font-semibold">Savings</p>
-              <p className="text-white text-sm font-bold">17.5k RWF/day</p>
+              <p className="text-violet-400 text-xs font-semibold">Analytics</p>
+              <p className="text-white text-sm font-bold">Live insights</p>
             </div>
           </div>
 

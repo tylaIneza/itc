@@ -1,8 +1,8 @@
 const router = require('express').Router();
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireCompanyScope } = require('../middleware/auth');
 const prisma = require('../lib/prisma');
 
-router.use(authenticate);
+router.use(authenticate, requireCompanyScope);
 
 router.get('/', async (req, res) => {
   const categories = await prisma.expenseCategory.findMany({ orderBy: { name: 'asc' } });

@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, ShoppingCart, Package, DollarSign,
   BarChart3, Users, ClipboardList, X, ChevronRight,
-  LogOut, CheckSquare, PiggyBank, Settings, Zap,
+  LogOut, CheckSquare, Settings, Zap, Building2, ShieldCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,7 +18,6 @@ const adminLinks = [
   { href: '/sales',           icon: ShoppingCart,    label: 'Sales' },
   { href: '/products',        icon: Package,         label: 'Products & Stock' },
   { href: '/expenses',        icon: DollarSign,      label: 'Expenses' },
-  { href: '/savings',         icon: PiggyBank,       label: 'Daily Savings' },
   { href: '/analytics',       icon: BarChart3,       label: 'Analytics & Reports' },
   { href: '/users',           icon: Users,           label: 'User Management' },
   { href: '/audit',           icon: ClipboardList,   label: 'Audit Logs' },
@@ -39,17 +38,26 @@ const sellerLinks = [
   { href: '/expenses', icon: DollarSign,      label: 'Expenses' },
 ];
 
+const superadminLinks = [
+  { href: '/superadmin',             icon: Building2,    label: 'Companies',   exact: true },
+  { href: '/superadmin/audit',       icon: ClipboardList, label: 'Audit Logs', exact: true },
+  { href: '/superadmin/permissions', icon: ShieldCheck,  label: 'Permissions', exact: true },
+];
+
 export default function Sidebar({ open, onClose }: SidebarProps) {
   const pathname        = usePathname();
   const { user, logout, hasPermission } = useAuth();
   const router          = useRouter();
+  const isSuperAdmin    = user?.role === 'superadmin';
   const isStrictAdmin   = user?.role === 'admin';
   const isManager       = user?.role === 'manager';
   const isAdminOrMgr    = isStrictAdmin || isManager;
   const canApprove      = isAdminOrMgr || hasPermission('can_approve_expenses');
-  const canViewSavings  = isStrictAdmin || hasPermission('can_view_savings');
 
-  const links = isStrictAdmin ? adminLinks : isManager ? managerLinks : sellerLinks;
+  const links = isSuperAdmin ? superadminLinks
+    : isStrictAdmin ? adminLinks
+    : isManager ? managerLinks
+    : sellerLinks;
 
   const handleLogout = async () => {
     await logout();
@@ -60,8 +68,10 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
   const isActive = (href: string, exact = false) =>
     exact ? pathname === href : pathname.startsWith(href);
 
-  const roleBadge = isStrictAdmin ? 'Admin' : isManager ? 'Manager' : 'Seller';
-  const roleColor = isStrictAdmin
+  const roleBadge = isSuperAdmin ? 'Superadmin' : isStrictAdmin ? 'Admin' : isManager ? 'Manager' : 'Seller';
+  const roleColor = isSuperAdmin
+    ? 'bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-400'
+    : isStrictAdmin
     ? 'bg-blue-100 dark:bg-blue-950/60 text-blue-800 dark:text-blue-400'
     : isManager
     ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400'
@@ -130,16 +140,6 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               </Link>
             );
           })}
-
-          {/* Savings shortcut — shown if non-admin user has can_view_savings (manager with permission) */}
-          {!isStrictAdmin && canViewSavings && (
-            <Link href="/savings" onClick={onClose}
-              className={cn('sidebar-link group', isActive('/savings') && 'active')}>
-              <PiggyBank className={cn('w-[18px] h-[18px] flex-shrink-0 text-emerald-500')} />
-              <span className="flex-1">Daily Savings</span>
-              {isActive('/savings') && <ChevronRight className="w-3.5 h-3.5 opacity-40" />}
-            </Link>
-          )}
 
           {/* Approvals shortcut (for admin/manager) */}
           {canApprove && (

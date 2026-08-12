@@ -1,8 +1,8 @@
 const router = require('express').Router();
-const { authenticate, requireAdmin } = require('../middleware/auth');
+const { authenticate, requireAdmin, requireCompanyScope } = require('../middleware/auth');
 const ctrl = require('../controllers/userController');
 
-router.use(authenticate, requireAdmin);
+router.use(authenticate, requireCompanyScope, requireAdmin);
 router.get('/roles', ctrl.getRoles);
 router.get('/managers', ctrl.getManagers);
 router.get('/', ctrl.getAll);

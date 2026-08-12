@@ -24,9 +24,8 @@ const analyticsRoutes = require('./src/routes/analytics');
 const auditRoutes = require('./src/routes/audit');
 const categoryRoutes = require('./src/routes/categories');
 const capitalRoutes  = require('./src/routes/capital');
-const savingsRoutes   = require('./src/routes/savings');
 const settingsRoutes  = require('./src/routes/settings');
-const { processDailySaving } = require('./src/controllers/savingsController');
+const superadminRoutes = require('./src/routes/superadmin');
 
 nextApp.prepare().then(() => {
   const app = express();
@@ -72,8 +71,8 @@ nextApp.prepare().then(() => {
   app.use('/api/audit', auditRoutes);
   app.use('/api/categories', categoryRoutes);
   app.use('/api/capital', capitalRoutes);
-  app.use('/api/savings',   savingsRoutes);
   app.use('/api/settings',  settingsRoutes);
+  app.use('/api/superadmin', superadminRoutes);
 
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -87,18 +86,6 @@ nextApp.prepare().then(() => {
   });
 
   app.all('*', (req, res) => handle(req, res));
-
-  // Daily savings scheduler — runs once at startup, then every hour
-  async function scheduleDailySaving() {
-    try {
-      const { created } = await processDailySaving(1);
-      if (created) console.log(`[Savings] Daily saving recorded`);
-    } catch (e) {
-      console.error('[Savings] Scheduler error:', e.message);
-    }
-  }
-  scheduleDailySaving();
-  setInterval(scheduleDailySaving, 60 * 60 * 1000);
 
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => {

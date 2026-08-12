@@ -109,14 +109,15 @@ export const settingsApi = {
     api.post('/settings/role-permissions/toggle', data),
 };
 
-export const savingsApi = {
-  getDashboardStats: () => api.get('/savings/dashboard-stats'),
-  getToday:          () => api.get('/savings/today'),
-  getMonthly:        (params?: { year?: number; month?: number }) => api.get('/savings/monthly', { params }),
-  getYearly:         (params?: { year?: number }) => api.get('/savings/yearly', { params }),
-  getAll:            (params?: object) => api.get('/savings', { params }),
-  triggerSaving:     () => api.post('/savings/create'),
-  recalculateAll:    () => api.post('/savings/recalculate-all'),
+export const superadminApi = {
+  getCompanies: () => api.get('/superadmin/companies'),
+  createCompany: (data: { company_name: string; admin_name: string; admin_email: string; admin_password: string }) =>
+    api.post('/superadmin/companies', data),
+  toggleCompany: (id: number) => api.patch(`/superadmin/companies/${id}/toggle`),
+  getCompanyDashboard: (id: number, params?: { period?: string; start_date?: string; end_date?: string }) =>
+    api.get(`/superadmin/companies/${id}/dashboard`, { params }),
+  getAuditLogs: (params?: object) => api.get('/superadmin/audit-logs', { params }),
+  getRolePermissions: () => api.get('/superadmin/role-permissions'),
 };
 
 export default api;

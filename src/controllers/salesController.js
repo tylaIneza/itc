@@ -1,7 +1,5 @@
 const prisma = require('../lib/prisma');
 const { auditLog } = require('../middleware/audit');
-const { processDailySaving } = require('./savingsController');
-
 const generateInvoice = () => {
   const d = new Date();
   const prefix = `INV${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
@@ -261,8 +259,6 @@ exports.deleteSale = async (req, res) => {
 
     const io = req.app.get('io');
     if (io) io.to('dashboard').emit('sale_deleted', { id });
-
-    processDailySaving(sale.branch_id, true).catch(() => {});
 
     res.json({ message: `Sale ${sale.invoice_number} deleted and stock restored` });
   } catch (err) {

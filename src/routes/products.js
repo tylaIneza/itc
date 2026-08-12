@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const multer = require('multer');
-const { authenticate, requirePermission } = require('../middleware/auth');
+const { authenticate, requirePermission, requireCompanyScope } = require('../middleware/auth');
 const ctrl = require('../controllers/productController');
 
 const upload = multer({
@@ -12,7 +12,7 @@ const upload = multer({
   },
 });
 
-router.use(authenticate);
+router.use(authenticate, requireCompanyScope);
 router.get('/low-stock', ctrl.getLowStock);
 router.get('/', ctrl.getAll);
 router.get('/:id', ctrl.getOne);
