@@ -7,6 +7,7 @@ import Header from '@/components/layout/Header';
 const pageTitles: Record<string, string> = {
   '/superadmin/audit':       'Platform Audit Logs',
   '/superadmin/permissions': 'Permissions',
+  '/superadmin/profile':     'Superadmin Account',
   '/superadmin/companies':   'Company Dashboard',
   '/superadmin': 'Companies',
   '/admin': 'Admin Dashboard',

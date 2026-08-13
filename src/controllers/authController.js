@@ -118,6 +118,34 @@ exports.me = async (req, res) => {
   }
 };
 
+exports.updateProfile = async (req, res) => {
+  const { name, email } = req.body;
+  if (!name || !email) return res.status(400).json({ error: 'Name and email are required' });
+
+  const newEmail = email.toLowerCase().trim();
+
+  try {
+    if (newEmail !== req.user.email) {
+      const existing = await prisma.user.findUnique({ where: { email: newEmail } });
+      if (existing) return res.status(409).json({ error: 'Email already in use' });
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: req.user.id },
+      data: { name: name.trim(), email: newEmail },
+    });
+
+    await auditLog({
+      userId: req.user.id, userName: updated.name, action: 'PROFILE_UPDATED',
+      module: 'AUTH', description: 'Updated own profile', ipAddress: req.ip,
+    });
+
+    res.json({ message: 'Profile updated', user: { id: updated.id, name: updated.name, email: updated.email } });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 exports.changePassword = async (req, res) => {
   const { current_password, new_password } = req.body;
   if (!current_password || !new_password || new_password.length < 8) {

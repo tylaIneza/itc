@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, ShoppingCart, Package, DollarSign,
   BarChart3, Users, ClipboardList, X, ChevronRight,
-  LogOut, CheckSquare, Settings, Zap, Building2, ShieldCheck,
+  LogOut, CheckSquare, Settings, Zap, Building2, ShieldCheck, UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
@@ -42,6 +42,7 @@ const superadminLinks = [
   { href: '/superadmin',             icon: Building2,    label: 'Companies',   exact: true },
   { href: '/superadmin/audit',       icon: ClipboardList, label: 'Audit Logs', exact: true },
   { href: '/superadmin/permissions', icon: ShieldCheck,  label: 'Permissions', exact: true },
+  { href: '/superadmin/profile',     icon: UserCog,      label: 'Account',     exact: true },
 ];
 
 export default function Sidebar({ open, onClose }: SidebarProps) {

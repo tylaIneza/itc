@@ -28,6 +28,8 @@ export const authApi = {
     api.post('/auth/login', { identifier, password }),
   logout: () => api.post('/auth/logout'),
   me: () => api.get('/auth/me'),
+  updateProfile: (data: { name: string; email: string }) =>
+    api.put('/auth/profile', data),
   changePassword: (data: { current_password: string; new_password: string }) =>
     api.put('/auth/change-password', data),
 };
