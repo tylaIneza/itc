@@ -22,3 +22,6 @@ uploads/*
 !uploads/.gitkeep
 
 /src/generated/prisma
+
+# Database backups — never commit real business data
+/backups/

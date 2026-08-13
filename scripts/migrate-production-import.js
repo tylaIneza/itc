@@ -27,6 +27,16 @@ const BRANCH_NAME  = process.env.IMPORT_BRANCH_NAME  || 'Main Branch';
 // aligned) — CoOpera permissions are intentionally excluded (feature retired).
 const EXCLUDED_PERMISSION_MODULES = ['Co-opera'];
 
+// Batched multi-row INSERT — drastically fewer round trips than one INSERT per row.
+// Only for tables nothing downstream needs the generated id from.
+async function batchInsert(conn, sql, rows, chunkSize = 300) {
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => `(${rows[0].map(() => '?').join(',')})`).join(',');
+    await conn.query(`${sql} VALUES ${placeholders}`, chunk.flat());
+  }
+}
+
 function parseTargetUrl(url) {
   const u = new URL(url);
   return {
@@ -160,7 +170,7 @@ async function main() {
     // ── 7. Stock movements — reconstruct before/after balances chronologically ─
     const [srcMovements] = await source.query('SELECT * FROM stock_movements ORDER BY productId, createdAt, id');
     const runningQty = {}; // source product id -> running balance
-    let movementCount = 0;
+    const movementRows = [];
     for (const m of srcMovements) {
       const before = runningQty[m.productId] || 0;
       let after;
@@ -172,14 +182,14 @@ async function main() {
       const targetUserId = userIdMap[m.userId];
       if (!targetProductId || !targetUserId) continue;
 
-      await target.query(
-        `INSERT INTO stock_movements (product_id, movement_type, quantity, quantity_before, quantity_after, reference_type, notes, performed_by, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [targetProductId, m.type, m.quantity, before, after, m.reference || null, m.reason || null, targetUserId, m.createdAt]
-      );
-      movementCount++;
+      movementRows.push([targetProductId, m.type, m.quantity, before, after, m.reference || null, m.reason || null, targetUserId, m.createdAt]);
     }
-    console.log(`✓ Stock movements: ${movementCount} (before/after balances reconstructed — not originally tracked in source)`);
+    if (movementRows.length) {
+      await batchInsert(target,
+        'INSERT INTO stock_movements (product_id, movement_type, quantity, quantity_before, quantity_after, reference_type, notes, performed_by, created_at)',
+        movementRows);
+    }
+    console.log(`✓ Stock movements: ${movementRows.length} (before/after balances reconstructed — not originally tracked in source)`);
 
     // ── 8. Sales + sale items ───────────────────────────────────────────────
     const [srcSales] = await source.query('SELECT * FROM sales ORDER BY id');
@@ -197,19 +207,19 @@ async function main() {
     console.log(`✓ Sales: ${Object.keys(saleIdMap).length} (payment method/status not tracked in source — defaulted to CASH/PAID)`);
 
     const [srcSaleItems] = await source.query('SELECT * FROM sale_items ORDER BY id');
-    let saleItemCount = 0;
+    const saleItemRows = [];
     for (const si of srcSaleItems) {
       const targetSaleId = saleIdMap[si.saleId];
       const targetProductId = productIdMap[si.productId];
       if (!targetSaleId) continue;
-      await target.query(
-        `INSERT INTO sale_items (sale_id, product_id, product_name, quantity, selling_price, cost_price, discount, line_total)
-         VALUES (?, ?, ?, ?, ?, ?, 0, ?)`,
-        [targetSaleId, targetProductId, productNameById[si.productId] || 'Unknown product', si.quantity, si.unitPrice, si.wholesalePrice, si.totalPrice]
-      );
-      saleItemCount++;
+      saleItemRows.push([targetSaleId, targetProductId, productNameById[si.productId] || 'Unknown product', si.quantity, si.unitPrice, si.wholesalePrice, 0, si.totalPrice]);
     }
-    console.log(`✓ Sale items: ${saleItemCount}`);
+    if (saleItemRows.length) {
+      await batchInsert(target,
+        'INSERT INTO sale_items (sale_id, product_id, product_name, quantity, selling_price, cost_price, discount, line_total)',
+        saleItemRows);
+    }
+    console.log(`✓ Sale items: ${saleItemRows.length}`);
 
     // ── 9. Expense categories + expenses ────────────────────────────────────
     const [srcExpCategories] = await source.query('SELECT * FROM expense_categories ORDER BY id');
@@ -229,55 +239,55 @@ async function main() {
     console.log(`✓ Expense categories: ${srcExpCategories.length} (reused existing global category where name matched)`);
 
     const [srcExpenses] = await source.query("SELECT * FROM expenses WHERE status = 'APPROVED' ORDER BY id");
-    let expenseCount = 0;
+    const expenseRows = [];
     for (const e of srcExpenses) {
       const targetCreator = userIdMap[e.userId];
       if (!targetCreator) continue;
-      await target.query(
-        `INSERT INTO expenses (title, amount, category_id, branch_id, expense_date, description, created_by, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          e.description.slice(0, 200), e.amount, expCategoryIdMap[e.categoryId] || null, branchId,
-          e.date, e.description, targetCreator, e.createdAt, e.updatedAt,
-        ]
-      );
-      expenseCount++;
+      expenseRows.push([
+        e.description.slice(0, 200), e.amount, expCategoryIdMap[e.categoryId] || null, branchId,
+        e.date, e.description, targetCreator, e.createdAt, e.updatedAt,
+      ]);
     }
-    console.log(`✓ Expenses: ${expenseCount} (only APPROVED status migrated — source had no PENDING/REJECTED at time of export)`);
+    if (expenseRows.length) {
+      await batchInsert(target,
+        'INSERT INTO expenses (title, amount, category_id, branch_id, expense_date, description, created_by, created_at, updated_at)',
+        expenseRows);
+    }
+    console.log(`✓ Expenses: ${expenseRows.length} (only APPROVED status migrated — source had no PENDING/REJECTED at time of export)`);
 
     // ── 10. Capital injections ──────────────────────────────────────────────
     const [srcCapital] = await source.query('SELECT * FROM capital_injections ORDER BY id');
-    let capitalCount = 0;
+    const capitalRows = [];
     for (const c of srcCapital) {
       const targetAdder = userIdMap[c.addedBy];
       if (!targetAdder) continue;
-      await target.query(
-        `INSERT INTO capital_injections (amount, description, date, branch_id, added_by, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [c.amount, c.description, c.date, branchId, targetAdder, c.createdAt]
-      );
-      capitalCount++;
+      capitalRows.push([c.amount, c.description, c.date, branchId, targetAdder, c.createdAt]);
     }
-    console.log(`✓ Capital injections: ${capitalCount}`);
+    if (capitalRows.length) {
+      await batchInsert(target,
+        'INSERT INTO capital_injections (amount, description, date, branch_id, added_by, created_at)',
+        capitalRows);
+    }
+    console.log(`✓ Capital injections: ${capitalRows.length}`);
 
     // ── 11. Audit logs (historical record only) ─────────────────────────────
     const [srcAudit] = await source.query('SELECT * FROM audit_logs ORDER BY id');
-    let auditCount = 0;
+    const auditRows = [];
     for (const a of srcAudit) {
       const targetUserId = a.userId ? (userIdMap[a.userId] || null) : null;
-      await target.query(
-        `INSERT INTO audit_logs (user_id, user_name, branch_id, action, module, entity_type, entity_id, old_values, new_values, ip_address, user_agent, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          targetUserId, null, branchId, a.action, a.module, a.entityType, a.entityId,
-          a.oldValues ? JSON.stringify(a.oldValues) : null,
-          a.newValues ? JSON.stringify(a.newValues) : null,
-          a.ipAddress, a.userAgent, a.createdAt,
-        ]
-      );
-      auditCount++;
+      auditRows.push([
+        targetUserId, null, branchId, a.action, a.module, a.entityType, a.entityId,
+        a.oldValues ? JSON.stringify(a.oldValues) : null,
+        a.newValues ? JSON.stringify(a.newValues) : null,
+        a.ipAddress, a.userAgent, a.createdAt,
+      ]);
     }
-    console.log(`✓ Audit logs: ${auditCount}`);
+    if (auditRows.length) {
+      await batchInsert(target,
+        'INSERT INTO audit_logs (user_id, user_name, branch_id, action, module, entity_type, entity_id, old_values, new_values, ip_address, user_agent, created_at)',
+        auditRows);
+    }
+    console.log(`✓ Audit logs: ${auditRows.length}`);
 
     await target.commit();
     console.log('\n✅ Import committed successfully.');
